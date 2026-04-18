@@ -29,12 +29,9 @@ def _activate() -> bool:
         logger.info("LangSmith tracing disabled — LANGSMITH_API_KEY not set")
         return False
 
-    if not configs.langsmith_tracing:
-        logger.info("LangSmith tracing disabled — set LANGSMITH_TRACING=true to enable")
-        return False
-
     # LangChain v0.2+ accepts both LANGCHAIN_* and LANGSMITH_* prefixes.
     # Set both for maximum compatibility across library versions.
+    # Tracing is force-enabled in code whenever a LangSmith API key is present.
     os.environ.update(
         {
             "LANGCHAIN_TRACING_V2": "true",
