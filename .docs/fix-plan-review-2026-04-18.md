@@ -107,3 +107,44 @@ And for redaction:
 ## Bottom line
 
 Implement this plan only after correcting the session-state rule for `last_product_ids`. Without that change, the exact live demo sequence from `Problem_Statement.md` will still be wrong.
+
+## Re-check After Plan Update
+
+### Verdict
+
+The updated plan is now implementation-safe.
+
+It fixed the two load-bearing gaps from the prior version:
+
+- it now preserves both `last_intent` and `last_product_ids` by restricting updates to `SALES_RECO`
+- it now correctly routes redaction into the actual LLM prompt path by generating redacted deterministic text before `_format_with_llm()`
+
+### What is now correct
+
+1. Session fix
+   - Correctly removes the compliance and ops overwrite path for `last_product_ids`
+   - Correctly keeps the original sales product list available for Q5
+
+2. Request ID fix
+   - Still correct
+
+3. Redaction fix
+   - Now acknowledges that `_format_with_llm()` consumes text, not the raw dict
+   - Therefore the plan now fixes the real call path rather than only storing redacted state
+
+4. Tests
+   - The added tests now match the failure modes that actually matter
+
+### Minor cleanup suggestion
+
+The plan proposes:
+
+- `intent=intent if intent == "SALES_RECO" else None`
+
+That works with the current `update_session()` implementation because falsy values are ignored, but for type clarity it would be cleaner to also update `src/state.py` so the `intent` parameter is typed as `Optional[str]` instead of `str`.
+
+This is not a blocker.
+
+### Final call
+
+The plan is now good to implement.

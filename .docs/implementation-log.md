@@ -126,3 +126,16 @@ Review `C:\Users\Expert\.cursor\plans\fix_3_critical_issues_87bb18db.plan.md`.
 - The redaction direction is correct.
 - The session fix is incomplete because it preserves `last_intent` but still allows `last_product_ids` to be overwritten by compliance and ops turns.
 - The redaction wiring also needs one extra adjustment because `_format_with_llm()` currently uses `deterministic_text`, not `chain_output`.
+
+## 2026-04-18 - Fix Plan Re-check
+
+### Task
+
+Re-check the updated external fix plan after corrections were applied.
+
+### Findings
+
+- The updated plan is now implementation-safe.
+- It now correctly preserves both `last_intent` and `last_product_ids`.
+- It now correctly routes redaction through the actual LLM prompt path.
+- Only minor cleanup remains: `src/state.py` could type `intent` as `Optional[str]` for clarity.

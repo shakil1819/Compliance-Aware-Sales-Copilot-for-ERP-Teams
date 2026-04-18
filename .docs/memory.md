@@ -28,3 +28,6 @@
   - good overall
   - must also preserve `last_product_ids`, not only `last_intent`
   - redaction must affect the actual LLM prompt path, not only stored state
+- Updated fix plan re-check:
+  - now safe to implement
+  - only minor cleanup suggestion remains around `update_session()` intent typing
