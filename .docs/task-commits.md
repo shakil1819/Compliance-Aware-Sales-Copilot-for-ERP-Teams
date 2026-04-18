@@ -31,3 +31,11 @@
 | RequestTracer not msgpack-serializable | Move tracer to _registry.py module-level dict, not in LangGraph state |
 | vendor_submission cleared in classify node | Preserve existing value from state instead of overwriting with {} |
 | Follow-up basket showing full product list | Detect basket_action flag in params; short-circuit to basket simulation output |
+
+## 2026-04-18 - Proposed Next Fixes
+
+| Proposed task | Planned file(s) | Reason |
+|---|---|---|
+| Preserve sales selection context across Q1 -> Q5 walkthrough | src/graph.py, tests/test_demo.py | Current session overwrite breaks required follow-up demo order |
+| Unify request IDs between API response and trace log | src/graph.py, src/observability.py, tests | Current traceability is broken |
+| Add real PII redaction before optional LLM formatting | src/guardrails.py, src/graph.py, tests | Requirement is documented but not implemented |

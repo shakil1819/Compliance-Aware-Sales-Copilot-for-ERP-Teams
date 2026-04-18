@@ -20,3 +20,7 @@
   - required live-demo Q5 follow-up still fails after the full Q1 -> Q4 sequence
   - observability request IDs are inconsistent between response and trace log
   - PII redaction is documented but not implemented
+- Fix proposal added:
+  - keep sales product-list context across later non-list turns
+  - unify request IDs by passing request_id into RequestTracer
+  - implement deterministic redaction helper before optional LLM formatting

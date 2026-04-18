@@ -97,3 +97,18 @@ Review the actual implementation against `Problem_Statement.md` and the rubric.
 - The Q5 basket follow-up fails after the full Q1 -> Q4 sequence because session state is overwritten by later turns.
 - Observability request IDs differ between the returned API result and the persisted trace log.
 - `output_guard()` claims PII redaction exists, but no redaction is implemented.
+
+## 2026-04-18 - Fix Proposal
+
+### Task
+
+Propose an implementation-ready fix in `.docs/` for the review findings.
+
+### Actions
+
+1. Wrote `.docs/implementation-fix-proposal-2026-04-18.md`.
+2. Defined remediation steps for:
+   - Q5 follow-up persistence across the full walkthrough
+   - request ID unification between API result and trace log
+   - real PII redaction before optional LLM formatting
+3. Added test recommendations and acceptance criteria.
