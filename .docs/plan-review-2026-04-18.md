@@ -236,3 +236,49 @@ Required correction:
 ## Bottom line
 
 The plan has good instincts around separation of concerns, observability, and deterministic tools. But in its current form it is too large, internally inconsistent, and not fully compliant with the prompt. The highest-risk failures are the sixth intent, the broken auth ordering, the undefined `review` semantics, and the unnecessary operational complexity for a time-boxed PoC.
+
+## Re-evaluation Against Problem_Statement.md After Plan v4
+
+### What improved
+
+- sync versus async inconsistency was reduced by switching to sync `SqliteSaver`
+- token estimation and timeout behavior are now explicitly documented
+- `detect_followup`, `extract_params`, and `classify_intent` are separated more cleanly
+- `VendorSubmission` is now explicitly typed
+
+### What is still wrong
+
+1. The plan still violates the exact-five-intents requirement.
+   - The problem statement requires routing into exactly one of five intents.
+   - The plan still routes to `FOLLOW_UP` in the graph and demo section.
+
+2. The authorization story is still muddled.
+   - The graph still starts with `input_guard -> classify_intent`.
+   - The text then says classification performs allowlist checks.
+   - This is better than before, but the design is still split across two places and is not cleanly modeled.
+
+3. The LLM failure default is still unsafe.
+   - Defaulting to `GENERAL_KB` on classifier exception can silently misroute a compliance or stock query.
+   - A safe fallback should preserve the best deterministic label or fail closed.
+
+4. The plan is still too large for the prompt.
+   - The prompt allows direct JSON or lightweight local storage and minimal memory.
+   - The plan still includes SQLite schema work, checkpoint persistence, LangGraph, cache layer, query-log table, and LLM formatting.
+   - That is still more system than the problem asks for.
+
+5. The compliance `review` path is still not properly defined.
+   - `allowed/blocked/review` is required.
+   - The plan still mostly explains `blocked`, but does not define crisp deterministic conditions for `review`.
+
+6. The vendor validation rule is still over-assumed.
+   - The plan still says lab reports are required for THC and Mushroom categories.
+   - The actual seed data does not support that as a strict category-wide fact.
+   - If that rule is desired, it must be declared as policy, not inferred from the dataset.
+
+7. The caching and query-log additions are not justified for the interview deliverable.
+   - They are not catastrophic, but they are not load-bearing for the rubric either.
+   - In a time-boxed build, they increase surface area before the core demo is proven.
+
+### Updated conclusion
+
+Plan v4 is better than the earlier draft, but the answer to "is it over-engineered relative to the problem statement" is still yes. It improved internal consistency, not scope discipline.
