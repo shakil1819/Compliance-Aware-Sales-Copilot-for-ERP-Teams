@@ -177,7 +177,7 @@ All runtime settings are centralized in `src/settings.py` and exposed through `c
 | `LOG_DIR` | `.logs` | Directory for application and trace logs |
 | `LOG_FILE` | `application.log` | Main application log filename |
 
-## Observability & Monitoring 
+## Observability & Monitoring
 <img width="1907" height="909" alt="image" src="https://github.com/user-attachments/assets/777caf13-3b2b-4b8d-b2eb-bf32c3c7270f" />
 
 ## Testing

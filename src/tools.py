@@ -12,27 +12,26 @@ from __future__ import annotations
 from langsmith import traceable  # type: ignore[import]
 
 from src.data import (
-    get_products,
-    get_product_by_id,
     get_inventory,
     get_kb_docs,
+    get_product_by_id,
+    get_products,
 )
 from src.models import (
-    Product,
+    KB_VISIBILITY,
+    VENDOR_POLICY,
     ComplianceResult,
-    InventoryEntry,
     InventoryResult,
+    KBSearchResult,
+    Product,
     VendorSubmission,
     VendorValidationResult,
-    KBSearchResult,
-    VENDOR_POLICY,
-    KB_VISIBILITY,
 )
-
 
 # ---------------------------------------------------------------------------
 # Tool 1 - hot_picks
 # ---------------------------------------------------------------------------
+
 
 @traceable(run_type="tool", name="hot_picks")
 def hot_picks(state: str, budget: float, limit: int = 10) -> list[Product]:
@@ -46,10 +45,7 @@ def hot_picks(state: str, budget: float, limit: int = 10) -> list[Product]:
         budget: Maximum price.
         limit:  Max results to return.
     """
-    candidates = [
-        p for p in get_products()
-        if p.price <= budget and state not in p.blocked_states
-    ]
+    candidates = [p for p in get_products() if p.price <= budget and state not in p.blocked_states]
     candidates.sort(key=lambda p: p.popularity_score, reverse=True)
     return candidates[:limit]
 
@@ -57,6 +53,7 @@ def hot_picks(state: str, budget: float, limit: int = 10) -> list[Product]:
 # ---------------------------------------------------------------------------
 # Tool 2 - compliance_filter
 # ---------------------------------------------------------------------------
+
 
 @traceable(run_type="tool", name="compliance_filter")
 def compliance_filter(state: str, product_ids: list[int]) -> list[ComplianceResult]:
@@ -78,46 +75,57 @@ def compliance_filter(state: str, product_ids: list[int]) -> list[ComplianceResu
         product = get_product_by_id(pid)
         if product is None:
             # Unknown product - treat as review (cannot confirm compliance)
-            results.append(ComplianceResult(
-                product_id=pid,
-                sku="UNKNOWN",
-                name="Unknown Product",
-                status="review",
-                reason_code=f"Product ID {pid} not found in catalog - compliance cannot be confirmed",
-            ))
+            results.append(
+                ComplianceResult(
+                    product_id=pid,
+                    sku="UNKNOWN",
+                    name="Unknown Product",
+                    status="review",
+                    reason_code=(
+                        f"Product ID {pid} not found in catalog - compliance cannot be confirmed"
+                    ),
+                )
+            )
             continue
 
         if state in product.blocked_states:
             active_flags = [
-                f for f in ["nicotine", "thc", "cbd", "kratom", "mushroom"]
+                f
+                for f in ["nicotine", "thc", "cbd", "kratom", "mushroom"]
                 if getattr(product.flags, f)
             ]
             flag_str = ", ".join(active_flags) if active_flags else "regulated"
-            results.append(ComplianceResult(
-                product_id=pid,
-                sku=product.sku,
-                name=product.name,
-                status="blocked",
-                reason_code=f"{flag_str} product blocked in {state} per state regulation",
-            ))
+            results.append(
+                ComplianceResult(
+                    product_id=pid,
+                    sku=product.sku,
+                    name=product.name,
+                    status="blocked",
+                    reason_code=f"{flag_str} product blocked in {state} per state regulation",
+                )
+            )
 
         elif product.lab_report_required:
-            results.append(ComplianceResult(
-                product_id=pid,
-                sku=product.sku,
-                name=product.name,
-                status="review",
-                reason_code="Lab report required - pending verification before sale",
-            ))
+            results.append(
+                ComplianceResult(
+                    product_id=pid,
+                    sku=product.sku,
+                    name=product.name,
+                    status="review",
+                    reason_code="Lab report required - pending verification before sale",
+                )
+            )
 
         else:
-            results.append(ComplianceResult(
-                product_id=pid,
-                sku=product.sku,
-                name=product.name,
-                status="allowed",
-                reason_code="",
-            ))
+            results.append(
+                ComplianceResult(
+                    product_id=pid,
+                    sku=product.sku,
+                    name=product.name,
+                    status="allowed",
+                    reason_code="",
+                )
+            )
 
     return results
 
@@ -125,6 +133,7 @@ def compliance_filter(state: str, product_ids: list[int]) -> list[ComplianceResu
 # ---------------------------------------------------------------------------
 # Tool 3 - stock_by_warehouse
 # ---------------------------------------------------------------------------
+
 
 @traceable(run_type="tool", name="stock_by_warehouse")
 def stock_by_warehouse(product_id: int) -> InventoryResult:
@@ -150,6 +159,7 @@ def stock_by_warehouse(product_id: int) -> InventoryResult:
 # ---------------------------------------------------------------------------
 # Tool 4 - vendor_validate
 # ---------------------------------------------------------------------------
+
 
 @traceable(run_type="tool", name="vendor_validate")
 def vendor_validate(submission: VendorSubmission) -> VendorValidationResult:
@@ -208,6 +218,7 @@ def vendor_validate(submission: VendorSubmission) -> VendorValidationResult:
 # Tool 5 - kb_search
 # ---------------------------------------------------------------------------
 
+
 @traceable(run_type="tool", name="kb_search")
 def kb_search(query: str, user_type: str, top_k: int = 3) -> list[KBSearchResult]:
     """
@@ -232,13 +243,18 @@ def kb_search(query: str, user_type: str, top_k: int = 3) -> list[KBSearchResult
 
         # Always include all visible docs, even with score 0 (short kb)
         snippet = doc.text[:200] + ("..." if len(doc.text) > 200 else "")
-        scored.append((score, KBSearchResult(
-            doc_id=doc.doc_id,
-            title=doc.title,
-            snippet=snippet,
-            visibility=doc.visibility,
-            score=score,
-        )))
+        scored.append(
+            (
+                score,
+                KBSearchResult(
+                    doc_id=doc.doc_id,
+                    title=doc.title,
+                    snippet=snippet,
+                    visibility=doc.visibility,
+                    score=score,
+                ),
+            )
+        )
 
     scored.sort(key=lambda x: x[0], reverse=True)
     return [r for _, r in scored[:top_k]]

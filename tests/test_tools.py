@@ -5,9 +5,10 @@ Covers: allowed, blocked, review compliance statuses; PASS/REVIEW/FAIL vendor va
 """
 
 import pytest
+
 from src.data import load_seed_data
-from src.tools import hot_picks, compliance_filter, stock_by_warehouse, vendor_validate, kb_search
 from src.models import VendorSubmission
+from src.tools import compliance_filter, hot_picks, kb_search, stock_by_warehouse, vendor_validate
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -18,6 +19,7 @@ def _load():
 # ---------------------------------------------------------------------------
 # hot_picks
 # ---------------------------------------------------------------------------
+
 
 class TestHotPicks:
     def test_returns_at_most_limit(self):
@@ -53,6 +55,7 @@ class TestHotPicks:
 # compliance_filter
 # ---------------------------------------------------------------------------
 
+
 class TestComplianceFilter:
     def test_allowed_status(self):
         # SKU-1001 (Accessories) - no blocked_states, no lab required
@@ -78,9 +81,9 @@ class TestComplianceFilter:
         # Mix of statuses
         results = compliance_filter("ID", [1001, 1003, 1004])
         statuses = {r.product_id: r.status for r in results}
-        assert statuses[1001] == "allowed"    # Accessories, no restrictions
-        assert statuses[1003] == "blocked"    # THC blocked in ID
-        assert statuses[1004] == "review"     # Lab required, not blocked in ID
+        assert statuses[1001] == "allowed"  # Accessories, no restrictions
+        assert statuses[1003] == "blocked"  # THC blocked in ID
+        assert statuses[1004] == "review"  # Lab required, not blocked in ID
 
     def test_unknown_product_returns_review(self):
         results = compliance_filter("CA", [99999])
@@ -96,6 +99,7 @@ class TestComplianceFilter:
 # ---------------------------------------------------------------------------
 # stock_by_warehouse
 # ---------------------------------------------------------------------------
+
 
 class TestStockByWarehouse:
     def test_known_product_has_warehouses(self):
@@ -120,6 +124,7 @@ class TestStockByWarehouse:
 # ---------------------------------------------------------------------------
 # vendor_validate
 # ---------------------------------------------------------------------------
+
 
 class TestVendorValidate:
     def test_pass_all_fields_with_lab_report(self):
@@ -198,6 +203,7 @@ class TestVendorValidate:
 # ---------------------------------------------------------------------------
 # kb_search
 # ---------------------------------------------------------------------------
+
 
 class TestKBSearch:
     def test_internal_sales_sees_all_docs(self):

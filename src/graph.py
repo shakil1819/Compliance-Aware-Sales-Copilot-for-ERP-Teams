@@ -15,37 +15,37 @@ In-memory session dict. LLM timeout=30 (set in router._llm_classify).
 from __future__ import annotations
 
 import uuid
-from typing import Any, Optional
+from typing import Any
+
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import END, START, StateGraph
+from langgraph.types import Command
+from langsmith import traceable  # type: ignore[import]
+from typing_extensions import TypedDict
 
 # langsmith_config must be imported BEFORE LangGraph/LangChain so os.environ
 # is configured before those libraries initialise their tracing callbacks.
 from src import langsmith_config  # noqa: F401
-
-from langsmith import traceable  # type: ignore[import]
-
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.graph import StateGraph, START, END
-from langgraph.types import Command
-from typing_extensions import TypedDict
-
+from src._registry import get_tracer as _registry_get
+from src._registry import register_tracer, unregister_tracer
+from src.chains import compliance_chain, kb_chain, ops_chain, sales_chain, vendor_chain
 from src.data import load_seed_data
-from src.guardrails import validate_user, authorize_tools, output_guard
-from src.chains import sales_chain, compliance_chain, vendor_chain, ops_chain, kb_chain
+from src.guardrails import authorize_tools, output_guard, validate_user
 from src.logging_config import logger
-from src.router import detect_followup, extract_params, classify_intent, ClassificationError
+from src.observability import RequestTracer
+from src.router import ClassificationError, classify_intent, detect_followup, extract_params
 from src.settings import configs
 from src.state import get_session, update_session
-from src.observability import RequestTracer
-from src._registry import get_tracer as _registry_get, register_tracer, unregister_tracer
 
 
-def _get_tracer(state: dict) -> Optional[RequestTracer]:
+def _get_tracer(state: dict) -> RequestTracer | None:
     return _registry_get(state.get("request_id", ""))
 
 
 # ---------------------------------------------------------------------------
 # Typed state
 # ---------------------------------------------------------------------------
+
 
 class AgentState(TypedDict):
     # Request inputs
@@ -54,35 +54,36 @@ class AgentState(TypedDict):
     session_id: str
 
     # Classification
-    intent: Optional[str]
-    extracted_params: Optional[dict]
-    classification_tier: Optional[str]
+    intent: str | None
+    extracted_params: dict | None
+    classification_tier: str | None
 
     # Vendor-specific (populated by classify node if query detected as vendor submission)
-    vendor_submission: Optional[dict]
+    vendor_submission: dict | None
 
     # Tool execution
     tool_results: list[dict]
-    chain_output: Optional[dict]
-    redacted_chain_output: Optional[dict]   # PII-stripped copy, set by output_guard
+    chain_output: dict | None
+    redacted_chain_output: dict | None  # PII-stripped copy, set by output_guard
 
     # Guardrails
-    blocked_reason: Optional[str]
+    blocked_reason: str | None
     compliance_violations: list[dict]
     degraded: bool
-    degraded_reason: Optional[str]
+    degraded_reason: str | None
 
     # Response
-    response_text: Optional[str]
+    response_text: str | None
 
     # Observability - request_id only; tracer lives in _active_tracers registry
     request_id: str
-    _session: Optional[dict]    # session snapshot for chain helpers
+    _session: dict | None  # session snapshot for chain helpers
 
 
 # ---------------------------------------------------------------------------
 # Node: classify_intent
 # ---------------------------------------------------------------------------
+
 
 def node_classify_intent(state: AgentState) -> Command:
     query = state["user_query"]
@@ -111,6 +112,7 @@ def node_classify_intent(state: AgentState) -> Command:
         params_dict["is_followup"] = True
         # Detect basket/cart action
         import re as _re
+
         if _re.search(r"\b(add|basket|cart)\b", query, _re.IGNORECASE):
             params_dict["basket_action"] = True
         if params.ordinal_ref is not None and session.last_product_ids:
@@ -165,6 +167,7 @@ def node_classify_intent(state: AgentState) -> Command:
 # Node: format_response (deterministic first, optional LLM)
 # ---------------------------------------------------------------------------
 
+
 def format_response(state: AgentState) -> Command:
     chain_output = state.get("chain_output") or {}
     intent = state.get("intent", "")
@@ -178,7 +181,9 @@ def format_response(state: AgentState) -> Command:
     if configs.use_llm_formatting and configs.openai_api_key:
         try:
             redacted_output = state.get("redacted_chain_output") or chain_output
-            redacted_text = _format_deterministic(intent, redacted_output, degraded, degraded_reason)
+            redacted_text = _format_deterministic(
+                intent, redacted_output, degraded, degraded_reason
+            )
             text = _format_with_llm(intent, redacted_text, tracer)
         except Exception as exc:
             logger.warning("LLM formatting failed, using deterministic output: {}", exc)
@@ -186,7 +191,12 @@ def format_response(state: AgentState) -> Command:
     return Command(update={"response_text": text}, goto="log_trace")
 
 
-def _format_deterministic(intent: str, output: dict, degraded: bool, degraded_reason: Optional[str]) -> str:
+def _format_deterministic(
+    intent: str,
+    output: dict,
+    degraded: bool,
+    degraded_reason: str | None,
+) -> str:
     prefix = ""
     if degraded:
         prefix = f"[DEGRADED - {degraded_reason}]\n\n"
@@ -200,8 +210,7 @@ def _format_deterministic(intent: str, output: dict, degraded: bool, degraded_re
             p = output.get("product", {})
             qty = output.get("quantity", 1)
             return (
-                prefix
-                + f"Added {qty}x {p.get('name', 'product')} ({p.get('sku', '')}, "
+                prefix + f"Added {qty}x {p.get('name', 'product')} ({p.get('sku', '')}, "
                 f"${p.get('price', 0):.2f} each) to basket.\n"
                 f"[Basket simulation - no Odoo cart integration in PoC. "
                 f"In production, this calls Odoo sale.order.line create via XML-RPC.]"
@@ -306,6 +315,7 @@ def _format_with_llm(intent: str, deterministic_text: str, tracer: Any) -> str:
 # Node: log_trace
 # ---------------------------------------------------------------------------
 
+
 def log_trace(state: AgentState) -> Command:
     return Command(goto=END)
 
@@ -313,6 +323,7 @@ def log_trace(state: AgentState) -> Command:
 # ---------------------------------------------------------------------------
 # Node: error_response
 # ---------------------------------------------------------------------------
+
 
 def error_response(state: AgentState) -> Command:
     reason = state.get("blocked_reason", "Unknown error")
@@ -323,6 +334,7 @@ def error_response(state: AgentState) -> Command:
 # ---------------------------------------------------------------------------
 # Build the graph
 # ---------------------------------------------------------------------------
+
 
 def build_graph() -> Any:
     """Build and compile the LangGraph StateGraph."""
@@ -354,6 +366,7 @@ def build_graph() -> Any:
 # run_query - main entry point for a single turn
 # ---------------------------------------------------------------------------
 
+
 @traceable(
     run_type="chain",
     name="chat_turn",
@@ -364,7 +377,7 @@ def run_query(
     user_query: str,
     user_type: str,
     session_id: str,
-    vendor_submission: Optional[dict] = None,
+    vendor_submission: dict | None = None,
 ) -> dict[str, Any]:
     """
     Execute one chat turn through the graph.

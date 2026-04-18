@@ -5,13 +5,13 @@ Not intended for direct use outside of graph.py and chains.py.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any
 
 # Keyed by request_id - stores active RequestTracer instances
 _active_tracers: dict[str, Any] = {}
 
 
-def get_tracer(request_id: str) -> Optional[Any]:
+def get_tracer(request_id: str) -> Any | None:
     return _active_tracers.get(request_id)
 
 

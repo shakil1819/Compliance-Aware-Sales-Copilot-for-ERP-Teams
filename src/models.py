@@ -5,13 +5,14 @@ All business rule configurations (VENDOR_POLICY) live here as declared constants
 
 from __future__ import annotations
 
-from typing import Literal, Optional
-from pydantic import BaseModel, Field
+from typing import Literal
 
+from pydantic import BaseModel, Field
 
 # ---------------------------------------------------------------------------
 # Seed data models
 # ---------------------------------------------------------------------------
+
 
 class ProductFlags(BaseModel):
     nicotine: bool = False
@@ -62,29 +63,38 @@ class KBDoc(BaseModel):
 # Intent classification
 # ---------------------------------------------------------------------------
 
-VALID_INTENTS = {"SALES_RECO", "COMPLIANCE_CHECK", "VENDOR_ONBOARDING", "OPS_STOCK", "GENERAL_KB"}
+VALID_INTENTS = {
+    "SALES_RECO",
+    "COMPLIANCE_CHECK",
+    "VENDOR_ONBOARDING",
+    "OPS_STOCK",
+    "GENERAL_KB",
+}
 VALID_USER_TYPES = {"internal_sales", "portal_vendor", "portal_customer"}
 
 
 class IntentClassification(BaseModel):
-    intent: Literal["SALES_RECO", "COMPLIANCE_CHECK", "VENDOR_ONBOARDING", "OPS_STOCK", "GENERAL_KB"]
+    intent: Literal[
+        "SALES_RECO", "COMPLIANCE_CHECK", "VENDOR_ONBOARDING", "OPS_STOCK", "GENERAL_KB"
+    ]
     confidence: float = 1.0
     tier: Literal["keyword", "llm"] = "keyword"
     low_confidence: bool = False
 
 
 class ExtractedParams(BaseModel):
-    state: Optional[str] = None
-    budget: Optional[float] = None
-    sku: Optional[str] = None
-    product_name: Optional[str] = None
-    quantity: Optional[int] = None
-    ordinal_ref: Optional[int] = None   # 0-indexed: "first one" -> 0
+    state: str | None = None
+    budget: float | None = None
+    sku: str | None = None
+    product_name: str | None = None
+    quantity: int | None = None
+    ordinal_ref: int | None = None  # 0-indexed: "first one" -> 0
 
 
 # ---------------------------------------------------------------------------
 # Tool I/O schemas
 # ---------------------------------------------------------------------------
+
 
 class ComplianceResult(BaseModel):
     product_id: int
@@ -104,11 +114,12 @@ class InventoryResult(BaseModel):
 
 class VendorSubmission(BaseModel):
     """Vendor product submission for validation. All fields optional - missing = fail."""
-    name: Optional[str] = None
-    category: Optional[str] = None
-    net_wt_oz: Optional[float] = None
-    net_vol_ml: Optional[float] = None
-    nicotine_mg: Optional[float] = None
+
+    name: str | None = None
+    category: str | None = None
+    net_wt_oz: float | None = None
+    net_vol_ml: float | None = None
+    nicotine_mg: float | None = None
     lab_report_attached: bool = False
 
 
@@ -131,6 +142,7 @@ class KBSearchResult(BaseModel):
 # Observability
 # ---------------------------------------------------------------------------
 
+
 class ToolCallRecord(BaseModel):
     name: str
     args: dict
@@ -143,15 +155,15 @@ class TraceRecord(BaseModel):
     timestamp: str
     session_id: str
     user_type: str
-    intent: Optional[str] = None
-    classification_tier: Optional[str] = None
+    intent: str | None = None
+    classification_tier: str | None = None
     low_confidence: bool = False
     tools_called: list[ToolCallRecord] = Field(default_factory=list)
     total_latency_ms: float = 0.0
     prompt_tokens_est: int = 0
     completion_tokens_est: int = 0
     degraded: bool = False
-    degraded_reason: Optional[str] = None
+    degraded_reason: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -169,23 +181,34 @@ VENDOR_POLICY: dict = {
 
 # Tool allowlists per user_type
 TOOL_ALLOWLIST: dict[str, set[str]] = {
-    "internal_sales": {"hot_picks", "compliance_filter", "stock_by_warehouse", "vendor_validate", "kb_search"},
-    "portal_vendor":  {"vendor_validate", "kb_search"},
-    "portal_customer": {"hot_picks", "compliance_filter", "stock_by_warehouse", "kb_search"},
+    "internal_sales": {
+        "hot_picks",
+        "compliance_filter",
+        "stock_by_warehouse",
+        "vendor_validate",
+        "kb_search",
+    },
+    "portal_vendor": {"vendor_validate", "kb_search"},
+    "portal_customer": {
+        "hot_picks",
+        "compliance_filter",
+        "stock_by_warehouse",
+        "kb_search",
+    },
 }
 
 # Tools required per intent
 INTENT_TOOLS: dict[str, set[str]] = {
-    "SALES_RECO":        {"hot_picks", "compliance_filter"},
-    "COMPLIANCE_CHECK":  {"compliance_filter"},
+    "SALES_RECO": {"hot_picks", "compliance_filter"},
+    "COMPLIANCE_CHECK": {"compliance_filter"},
     "VENDOR_ONBOARDING": {"vendor_validate"},
-    "OPS_STOCK":         {"stock_by_warehouse"},
-    "GENERAL_KB":        {"kb_search"},
+    "OPS_STOCK": {"stock_by_warehouse"},
+    "GENERAL_KB": {"kb_search"},
 }
 
 # KB doc visibility access per user_type
 KB_VISIBILITY: dict[str, set[str]] = {
-    "internal_sales":  {"internal", "public", "vendor"},
-    "portal_vendor":   {"vendor", "public"},
+    "internal_sales": {"internal", "public", "vendor"},
+    "portal_vendor": {"vendor", "public"},
     "portal_customer": {"public"},
 }

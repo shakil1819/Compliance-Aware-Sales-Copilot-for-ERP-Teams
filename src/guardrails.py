@@ -14,7 +14,7 @@ from typing import Any
 from langgraph.types import Command
 
 from src.logging_config import logger
-from src.models import TOOL_ALLOWLIST, INTENT_TOOLS, VALID_USER_TYPES
+from src.models import INTENT_TOOLS, TOOL_ALLOWLIST, VALID_USER_TYPES
 
 # Fields considered PII in chain output dicts
 _PII_KEYS = {"name", "customer_id", "vendor_id", "email", "phone", "address"}
@@ -51,7 +51,7 @@ def validate_user(state: dict[str, Any]) -> Command:
         return Command(
             update={
                 "blocked_reason": f"Invalid user_type: {user_type!r}. "
-                                  f"Must be one of: {sorted(VALID_USER_TYPES)}",
+                f"Must be one of: {sorted(VALID_USER_TYPES)}",
                 "response_text": f"Access denied: unknown user type '{user_type}'.",
             },
             goto="error_response",
@@ -72,10 +72,7 @@ def authorize_tools(state: dict[str, Any]) -> Command:
 
     denied = required_tools - allowed_tools
     if denied:
-        reason = (
-            f"{user_type} cannot access tool(s) {sorted(denied)} "
-            f"required by intent {intent}"
-        )
+        reason = f"{user_type} cannot access tool(s) {sorted(denied)} required by intent {intent}"
         logger.warning("Tool authorization denied: {}", reason)
         return Command(
             update={
@@ -87,11 +84,11 @@ def authorize_tools(state: dict[str, Any]) -> Command:
 
     # Route to the appropriate chain node
     chain_map = {
-        "SALES_RECO":        "sales_chain",
-        "COMPLIANCE_CHECK":  "compliance_chain",
+        "SALES_RECO": "sales_chain",
+        "COMPLIANCE_CHECK": "compliance_chain",
         "VENDOR_ONBOARDING": "vendor_chain",
-        "OPS_STOCK":         "ops_chain",
-        "GENERAL_KB":        "kb_chain",
+        "OPS_STOCK": "ops_chain",
+        "GENERAL_KB": "kb_chain",
     }
     next_node = chain_map.get(intent, "error_response")
     return Command(goto=next_node)

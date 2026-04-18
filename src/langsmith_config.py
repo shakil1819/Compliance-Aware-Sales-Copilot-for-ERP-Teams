@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import os
 
-from src.settings import configs
 from src.logging_config import logger
+from src.settings import configs
 
 
 def _activate() -> bool:
@@ -35,16 +35,18 @@ def _activate() -> bool:
 
     # LangChain v0.2+ accepts both LANGCHAIN_* and LANGSMITH_* prefixes.
     # Set both for maximum compatibility across library versions.
-    os.environ.update({
-        "LANGCHAIN_TRACING_V2":  "true",
-        "LANGSMITH_TRACING":     "true",
-        "LANGCHAIN_API_KEY":     configs.langsmith_api_key,
-        "LANGSMITH_API_KEY":     configs.langsmith_api_key,
-        "LANGCHAIN_PROJECT":     configs.langsmith_project,
-        "LANGSMITH_PROJECT":     configs.langsmith_project,
-        "LANGCHAIN_ENDPOINT":    configs.langsmith_endpoint,
-        "LANGSMITH_ENDPOINT":    configs.langsmith_endpoint,
-    })
+    os.environ.update(
+        {
+            "LANGCHAIN_TRACING_V2": "true",
+            "LANGSMITH_TRACING": "true",
+            "LANGCHAIN_API_KEY": configs.langsmith_api_key,
+            "LANGSMITH_API_KEY": configs.langsmith_api_key,
+            "LANGCHAIN_PROJECT": configs.langsmith_project,
+            "LANGSMITH_PROJECT": configs.langsmith_project,
+            "LANGCHAIN_ENDPOINT": configs.langsmith_endpoint,
+            "LANGSMITH_ENDPOINT": configs.langsmith_endpoint,
+        }
+    )
 
     logger.info(
         "LangSmith tracing ACTIVE — project='{}' endpoint={}",
@@ -70,6 +72,7 @@ def tag_current_run(metadata: dict, tags: list[str] | None = None) -> None:
         return
     try:
         from langsmith import get_current_run_tree  # type: ignore[import]
+
         rt = get_current_run_tree()
         if rt is None:
             return

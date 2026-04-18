@@ -61,7 +61,9 @@ class FlatteningTomlConfigSettingsSource(TomlConfigSettingsSource):
         toml_file: PathType | None = DEFAULT_PATH,
         deep_merge: bool = False,
     ) -> None:
-        self.toml_file_path = toml_file if toml_file != DEFAULT_PATH else settings_cls.model_config.get("toml_file")
+        self.toml_file_path = (
+            toml_file if toml_file != DEFAULT_PATH else settings_cls.model_config.get("toml_file")
+        )
         if os.environ.get("SETTINGS_TOML"):
             self.toml_file_path = os.environ["SETTINGS_TOML"]
         raw = self._read_files(self.toml_file_path, deep_merge=deep_merge)

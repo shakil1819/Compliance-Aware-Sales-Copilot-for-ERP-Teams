@@ -11,10 +11,11 @@ from __future__ import annotations
 import json
 import time
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Generator, Optional
+from typing import Any
 
 from src.logging_config import logger
 from src.models import ToolCallRecord, TraceRecord
@@ -36,7 +37,7 @@ def estimate_tokens(text: str) -> int:
 class _ToolCallContext:
     """Returned by RequestTracer.tool_call() for capturing result and timing."""
 
-    def __init__(self, tracer: "RequestTracer", name: str, args: dict) -> None:
+    def __init__(self, tracer: RequestTracer, name: str, args: dict) -> None:
         self._tracer = tracer
         self._name = name
         self._args = args
@@ -70,19 +71,19 @@ class RequestTracer:
             tracer.add_tokens(prompt_text, completion_text)
     """
 
-    def __init__(self, session_id: str, user_type: str, request_id: Optional[str] = None) -> None:
+    def __init__(self, session_id: str, user_type: str, request_id: str | None = None) -> None:
         self.request_id = request_id if request_id else str(uuid.uuid4())
         self.session_id = session_id
         self.user_type = user_type
-        self._intent: Optional[str] = None
-        self._tier: Optional[str] = None
+        self._intent: str | None = None
+        self._tier: str | None = None
         self._low_confidence = False
         self._tool_contexts: list[_ToolCallContext] = []
         self._tool_records: list[ToolCallRecord] = []
         self._prompt_tokens = 0
         self._completion_tokens = 0
         self._degraded = False
-        self._degraded_reason: Optional[str] = None
+        self._degraded_reason: str | None = None
         self._start = time.monotonic()
 
     def set_intent(self, intent: str, tier: str = "keyword", low_confidence: bool = False) -> None:
@@ -107,7 +108,7 @@ class RequestTracer:
         self._degraded = True
         self._degraded_reason = reason
 
-    def __enter__(self) -> "RequestTracer":
+    def __enter__(self) -> RequestTracer:
         logger.debug(
             "Opening request tracer request_id={} session_id={} user_type={}",
             self.request_id,
@@ -120,7 +121,7 @@ class RequestTracer:
         total_ms = (time.monotonic() - self._start) * 1000
         record = TraceRecord(
             request_id=self.request_id,
-            timestamp=datetime.now(timezone.utc).isoformat(),
+            timestamp=datetime.now(UTC).isoformat(),
             session_id=self.session_id,
             user_type=self.user_type,
             intent=self._intent,

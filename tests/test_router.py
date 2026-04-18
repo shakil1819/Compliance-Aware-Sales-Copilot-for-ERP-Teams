@@ -6,9 +6,10 @@ Tests for the three router functions:
 """
 
 import pytest
-from src.router import detect_followup, extract_params, classify_intent, ClassificationError
-from src.state import SessionState
+
 from src.data import load_seed_data
+from src.router import classify_intent, detect_followup, extract_params
+from src.state import SessionState
 
 
 @pytest.fixture(autouse=True, scope="module")
@@ -19,6 +20,7 @@ def _load():
 # ---------------------------------------------------------------------------
 # detect_followup
 # ---------------------------------------------------------------------------
+
 
 class TestDetectFollowup:
     def _session(self, **kw):
@@ -66,6 +68,7 @@ class TestDetectFollowup:
 # extract_params
 # ---------------------------------------------------------------------------
 
+
 class TestExtractParams:
     def test_state_uppercase(self):
         p = extract_params("Give me hot picks for CA under 5000")
@@ -110,6 +113,7 @@ class TestExtractParams:
 # ---------------------------------------------------------------------------
 # classify_intent (keyword tier only - no LLM)
 # ---------------------------------------------------------------------------
+
 
 class TestClassifyIntent:
     def test_sales_reco(self):

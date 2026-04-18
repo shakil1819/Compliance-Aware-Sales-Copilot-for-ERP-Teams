@@ -45,6 +45,7 @@ def _run(graph, query, user_type="internal_sales", session_id=None, vendor_submi
 # Q1: SALES_RECO
 # ---------------------------------------------------------------------------
 
+
 class TestSalesReco:
     def test_intent_is_sales_reco(self, graph):
         r = _run(graph, "Give me hot picks for CA under 5000")
@@ -66,8 +67,9 @@ class TestSalesReco:
 
     def test_no_blocked_products_in_response(self, graph):
         r = _run(graph, "Give me hot picks for CA under 5000")
-        assert "blocked" not in r["response_text"].lower() or \
-               "[REVIEW" in r["response_text"]  # blocked is ok in REVIEW flag text
+        assert (
+            "blocked" not in r["response_text"].lower() or "[REVIEW" in r["response_text"]
+        )  # blocked is ok in REVIEW flag text
 
     def test_response_contains_products(self, graph):
         r = _run(graph, "Give me hot picks for CA under 5000")
@@ -87,6 +89,7 @@ class TestSalesReco:
 # ---------------------------------------------------------------------------
 # Q2: COMPLIANCE_CHECK
 # ---------------------------------------------------------------------------
+
 
 class TestComplianceCheck:
     def test_intent_is_compliance_check(self, graph):
@@ -119,6 +122,7 @@ class TestComplianceCheck:
 # Q3: OPS_STOCK
 # ---------------------------------------------------------------------------
 
+
 class TestOpsStock:
     def test_intent_is_ops_stock(self, graph):
         r = _run(graph, "How much stock does SKU-1008 have and where?")
@@ -142,6 +146,7 @@ class TestOpsStock:
 # ---------------------------------------------------------------------------
 # Q4: VENDOR_ONBOARDING
 # ---------------------------------------------------------------------------
+
 
 class TestVendorOnboarding:
     def test_intent_is_vendor_onboarding(self, graph):
@@ -183,8 +188,10 @@ class TestVendorOnboarding:
             "I want to validate a vendor submission",
             user_type="portal_vendor",
             vendor_submission={
-                "name": "Test", "category": "Accessories",
-                "net_wt_oz": 5.0, "net_vol_ml": 100.0,
+                "name": "Test",
+                "category": "Accessories",
+                "net_wt_oz": 5.0,
+                "net_vol_ml": 100.0,
             },
         )
         assert r["intent"] == "VENDOR_ONBOARDING"
@@ -195,41 +202,74 @@ class TestVendorOnboarding:
 # Q5: FOLLOW_UP (basket action)
 # ---------------------------------------------------------------------------
 
+
 class TestFollowUp:
     def test_follow_up_resolves_to_sales_reco(self, graph):
         session_id = "demo-followup-" + str(uuid.uuid4())[:8]
         # First query to populate session
-        _run(graph, "Give me hot picks for CA under 5000",
-             session_id=session_id, user_type="internal_sales")
+        _run(
+            graph,
+            "Give me hot picks for CA under 5000",
+            session_id=session_id,
+            user_type="internal_sales",
+        )
         # Follow-up
-        r = _run(graph, "Ok add 2 of the first one to the basket",
-                 session_id=session_id, user_type="internal_sales")
+        r = _run(
+            graph,
+            "Ok add 2 of the first one to the basket",
+            session_id=session_id,
+            user_type="internal_sales",
+        )
         assert r["intent"] == "SALES_RECO"
 
     def test_follow_up_intent_not_sixth(self, graph):
         valid = {"SALES_RECO", "COMPLIANCE_CHECK", "VENDOR_ONBOARDING", "OPS_STOCK", "GENERAL_KB"}
         session_id = "demo-followup-" + str(uuid.uuid4())[:8]
-        _run(graph, "Give me hot picks for CA under 5000",
-             session_id=session_id, user_type="internal_sales")
-        r = _run(graph, "Ok add 2 of the first one to the basket",
-                 session_id=session_id, user_type="internal_sales")
+        _run(
+            graph,
+            "Give me hot picks for CA under 5000",
+            session_id=session_id,
+            user_type="internal_sales",
+        )
+        r = _run(
+            graph,
+            "Ok add 2 of the first one to the basket",
+            session_id=session_id,
+            user_type="internal_sales",
+        )
         assert r["intent"] in valid
 
     def test_basket_simulation_message(self, graph):
         session_id = "demo-followup-" + str(uuid.uuid4())[:8]
-        _run(graph, "Give me hot picks for CA under 5000",
-             session_id=session_id, user_type="internal_sales")
-        r = _run(graph, "Ok add 2 of the first one to the basket",
-                 session_id=session_id, user_type="internal_sales")
+        _run(
+            graph,
+            "Give me hot picks for CA under 5000",
+            session_id=session_id,
+            user_type="internal_sales",
+        )
+        r = _run(
+            graph,
+            "Ok add 2 of the first one to the basket",
+            session_id=session_id,
+            user_type="internal_sales",
+        )
         response = r["response_text"]
         assert "basket" in response.lower() or "Basket simulation" in response
 
     def test_basket_adds_correct_product(self, graph):
         session_id = "demo-followup-" + str(uuid.uuid4())[:8]
-        _run(graph, "Give me hot picks for CA under 5000",
-             session_id=session_id, user_type="internal_sales")
-        r = _run(graph, "Ok add 2 of the first one to the basket",
-                 session_id=session_id, user_type="internal_sales")
+        _run(
+            graph,
+            "Give me hot picks for CA under 5000",
+            session_id=session_id,
+            user_type="internal_sales",
+        )
+        r = _run(
+            graph,
+            "Ok add 2 of the first one to the basket",
+            session_id=session_id,
+            user_type="internal_sales",
+        )
         # Top product for CA under 5000 is SKU-1016 (Kratom - Pulse 371)
         assert "SKU-1016" in r["response_text"] or "Kratom" in r["response_text"]
 
@@ -237,6 +277,7 @@ class TestFollowUp:
 # ---------------------------------------------------------------------------
 # Permission enforcement
 # ---------------------------------------------------------------------------
+
 
 class TestPermissions:
     def test_portal_vendor_denied_sales_reco(self, graph):
@@ -255,6 +296,7 @@ class TestPermissions:
 # ---------------------------------------------------------------------------
 # Full live-demo sequence Q1 -> Q5 (exact order from Problem Statement)
 # ---------------------------------------------------------------------------
+
 
 class TestFullDemoSequence:
     def test_full_demo_sequence_q1_to_q5(self, graph):
@@ -304,6 +346,7 @@ class TestFullDemoSequence:
 # Observability: request_id must match between API response and trace log
 # ---------------------------------------------------------------------------
 
+
 class TestObservability:
     def test_request_id_matches_trace_log(self, graph):
         """
@@ -323,6 +366,7 @@ class TestObservability:
 # ---------------------------------------------------------------------------
 # PII redaction: redact_for_llm() must strip vendor entity fields
 # ---------------------------------------------------------------------------
+
 
 def test_pii_redaction_removes_vendor_name():
     """

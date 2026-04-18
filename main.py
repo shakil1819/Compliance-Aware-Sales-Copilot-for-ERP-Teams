@@ -45,7 +45,10 @@ def main() -> None:
     print(f"\nSession started [{user_type}] (session_id: {session_id[:8]}...)")
     print("Type your query. Use 'quit' to exit.")
     print("Vendor submission hint: prefix with 'VENDOR_JSON:' then JSON, e.g.:")
-    print("  VENDOR_JSON:{\"category\":\"THC Beverage\",\"net_wt_oz\":12} I have a product missing net vol\n")
+    print(
+        '  VENDOR_JSON:{"category":"THC Beverage","net_wt_oz":12} '
+        "I have a product missing net vol\n"
+    )
 
     while True:
         try:
@@ -67,7 +70,7 @@ def main() -> None:
         query = raw
         if raw.upper().startswith("VENDOR_JSON:"):
             try:
-                rest = raw[len("VENDOR_JSON:"):]
+                rest = raw[len("VENDOR_JSON:") :]
                 brace_end = rest.index("}") + 1
                 vendor_submission = json.loads(rest[:brace_end])
                 query = rest[brace_end:].strip()

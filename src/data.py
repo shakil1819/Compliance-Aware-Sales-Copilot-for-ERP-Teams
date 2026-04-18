@@ -9,7 +9,7 @@ import json
 from pathlib import Path
 
 from src.logging_config import logger
-from src.models import Product, InventoryEntry, Customer, Vendor, KBDoc
+from src.models import Customer, InventoryEntry, KBDoc, Product, Vendor
 
 # ---------------------------------------------------------------------------
 # Module-level store - populated by load_seed_data()
@@ -41,13 +41,13 @@ def load_seed_data(path: str = "data/seed_data (3).json") -> None:
     global _products, _inventory, _customers, _vendors, _kb_docs
     global _products_by_id, _products_by_sku
 
-    _products  = [Product(**p) for p in raw["products"]]
+    _products = [Product(**p) for p in raw["products"]]
     _inventory = [InventoryEntry(**i) for i in raw["inventory"]]
     _customers = [Customer(**c) for c in raw["customers"]]
-    _vendors   = [Vendor(**v) for v in raw["vendors"]]
-    _kb_docs   = [KBDoc(**d) for d in raw["kb_docs"]]
+    _vendors = [Vendor(**v) for v in raw["vendors"]]
+    _kb_docs = [KBDoc(**d) for d in raw["kb_docs"]]
 
-    _products_by_id  = {p.product_id: p for p in _products}
+    _products_by_id = {p.product_id: p for p in _products}
     _products_by_sku = {p.sku: p for p in _products}
 
     _loaded = True
@@ -64,6 +64,7 @@ def load_seed_data(path: str = "data/seed_data (3).json") -> None:
 # ---------------------------------------------------------------------------
 # Accessors
 # ---------------------------------------------------------------------------
+
 
 def get_products() -> list[Product]:
     return _products
@@ -97,6 +98,7 @@ def get_product_by_sku(sku: str) -> Product | None:
 # Chain helpers (not tools - internal use only, not in allowlists)
 # ---------------------------------------------------------------------------
 
+
 def resolve_product(sku_or_name: str) -> Product | None:
     """
     Resolve a product reference.
@@ -129,7 +131,8 @@ def find_alternatives(
     sorted by popularity descending. Excludes specified product IDs.
     """
     candidates = [
-        p for p in _products
+        p
+        for p in _products
         if p.category == category
         and p.product_id not in exclude_ids
         and state not in p.blocked_states

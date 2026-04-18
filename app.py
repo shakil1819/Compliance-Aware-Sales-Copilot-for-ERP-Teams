@@ -25,9 +25,11 @@ st.set_page_config(
 # Load graph once (cached across reruns)
 # ---------------------------------------------------------------------------
 
+
 @st.cache_resource(show_spinner="Loading product data and building graph…")
 def _get_graph():
     from src.graph import build_graph
+
     return build_graph()
 
 
@@ -40,9 +42,9 @@ graph = _get_graph()
 if "session_id" not in st.session_state:
     st.session_state.session_id = str(uuid.uuid4())
 if "messages" not in st.session_state:
-    st.session_state.messages = []          # list[dict] – chat history
+    st.session_state.messages = []  # list[dict] – chat history
 if "pending_query" not in st.session_state:
-    st.session_state.pending_query = None   # pre-filled from demo button
+    st.session_state.pending_query = None  # pre-filled from demo button
 if "pending_vendor" not in st.session_state:
     st.session_state.pending_vendor = None
 
@@ -129,8 +131,10 @@ with st.sidebar:
     for i, dq in enumerate(DEMO_QUERIES):
         col_icon, col_btn = st.columns([0.12, 0.88])
         with col_icon:
-            st.markdown(f"<div style='font-size:22px;margin-top:6px'>{dq['icon']}</div>",
-                        unsafe_allow_html=True)
+            st.markdown(
+                f"<div style='font-size:22px;margin-top:6px'>{dq['icon']}</div>",
+                unsafe_allow_html=True,
+            )
         with col_btn:
             if st.button(
                 dq["label"],
@@ -167,15 +171,15 @@ with st.sidebar:
     st.markdown("#### ℹ️ When is LLM called?")
     st.markdown(
         """
-**Tier-2 classification** — only when keyword score < 0.05  
+**Tier-2 classification** — only when keyword score < 0.05
 **LLM formatting** — only when `USE_LLM_FORMATTING=true`
 
 Without `OPENAI_API_KEY` the system runs **100% deterministically** on keywords + rule-based tools.
         """
     )
 
-    from src.settings import configs as _cfg
     from src.langsmith_config import langsmith_active as _ls_active
+    from src.settings import configs as _cfg
 
     if _cfg.openai_api_key:
         st.success("🔑 OPENAI_API_KEY loaded")
@@ -190,10 +194,7 @@ Without `OPENAI_API_KEY` the system runs **100% deterministically** on keywords 
     st.divider()
     st.markdown("#### 🔭 LangSmith Tracing")
     if _ls_active:
-        project_url = (
-            f"https://smith.langchain.com/projects/p/"
-            f"{_cfg.langsmith_project}"
-        )
+        project_url = f"https://smith.langchain.com/projects/p/{_cfg.langsmith_project}"
         st.success(f"🟢 Tracing **ON** — [{_cfg.langsmith_project}]({project_url})")
         st.caption("Every request → LangSmith. All nodes, tools, and LLM calls captured.")
     else:
@@ -219,6 +220,7 @@ st.divider()
 # ---------------------------------------------------------------------------
 # Helper: render one chat turn
 # ---------------------------------------------------------------------------
+
 
 def _intent_badge(intent: str) -> str:
     color = INTENT_COLORS.get(intent, "#555")
@@ -247,10 +249,7 @@ def _render_assistant_turn(result: dict) -> None:
     text = result.get("response_text", "")
 
     # Meta row
-    meta_html = (
-        f"{_intent_badge(intent)}&nbsp;&nbsp;"
-        f"{_tier_badge(tier)}&nbsp;&nbsp;"
-    )
+    meta_html = f"{_intent_badge(intent)}&nbsp;&nbsp;{_tier_badge(tier)}&nbsp;&nbsp;"
     if degraded:
         meta_html += "<span style='color:#c0392b;font-size:12px'>⚠️ DEGRADED</span>&nbsp;&nbsp;"
     if latency:
@@ -283,9 +282,11 @@ def _render_assistant_turn(result: dict) -> None:
 # Helper: run one query and record in history
 # ---------------------------------------------------------------------------
 
+
 def _run_turn(query: str, ut: str, vendor_submission=None) -> dict:
-    from src.graph import run_query
     import time
+
+    from src.graph import run_query
 
     t0 = time.monotonic()
     result = run_query(
@@ -298,15 +299,19 @@ def _run_turn(query: str, ut: str, vendor_submission=None) -> dict:
     elapsed_ms = (time.monotonic() - t0) * 1000
     result["latency_ms"] = elapsed_ms
 
-    st.session_state.messages.append({
-        "role": "user",
-        "content": query,
-        "user_type": ut,
-    })
-    st.session_state.messages.append({
-        "role": "assistant",
-        "result": result,
-    })
+    st.session_state.messages.append(
+        {
+            "role": "user",
+            "content": query,
+            "user_type": ut,
+        }
+    )
+    st.session_state.messages.append(
+        {
+            "role": "assistant",
+            "result": result,
+        }
+    )
     return result
 
 
@@ -392,7 +397,10 @@ for i, dq in enumerate(DEMO_QUERIES):
 # Vendor submission panel (optional structured input for VENDOR_ONBOARDING)
 # ---------------------------------------------------------------------------
 
-with st.expander("📋 Vendor submission JSON (optional — for vendor validation queries)", expanded=False):
+with st.expander(
+    "📋 Vendor submission JSON (optional - for vendor validation queries)",
+    expanded=False,
+):
     st.caption(
         "Paste a JSON object with your product fields. "
         "This is passed directly to `vendor_validate` alongside your query text. "
@@ -433,6 +441,7 @@ with st.expander("📋 Vendor submission JSON (optional — for vendor validatio
 # Parse VENDOR_JSON: prefix from raw chat input (same as CLI behaviour)
 # ---------------------------------------------------------------------------
 
+
 def _parse_chat_input(raw: str) -> tuple[str, dict | None]:
     """
     Extract optional VENDOR_JSON:{...} prefix from the chat input string.
@@ -440,8 +449,9 @@ def _parse_chat_input(raw: str) -> tuple[str, dict | None]:
     Matches the CLI prefix behaviour in main.py.
     """
     import json as _json
+
     if raw.upper().startswith("VENDOR_JSON:"):
-        rest = raw[len("VENDOR_JSON:"):]
+        rest = raw[len("VENDOR_JSON:") :]
         try:
             brace_end = rest.index("}") + 1
             vendor = _json.loads(rest[:brace_end])
@@ -452,9 +462,7 @@ def _parse_chat_input(raw: str) -> tuple[str, dict | None]:
     return raw, None
 
 
-chat_input = st.chat_input(
-    "Ask anything… or prefix with VENDOR_JSON:{…} for vendor validation"
-)
+chat_input = st.chat_input("Ask anything… or prefix with VENDOR_JSON:{…} for vendor validation")
 
 if chat_input:
     query_text, inline_vendor = _parse_chat_input(chat_input)

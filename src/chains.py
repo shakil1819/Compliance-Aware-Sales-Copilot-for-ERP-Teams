@@ -17,10 +17,10 @@ from typing import Any
 
 from langgraph.types import Command
 
-from src.data import resolve_product, find_alternatives, get_product_by_id
-from src.tools import hot_picks, compliance_filter, stock_by_warehouse, vendor_validate, kb_search
-from src.models import VendorSubmission
 from src._registry import get_tracer as _get_tracer_by_id
+from src.data import find_alternatives, get_product_by_id, resolve_product
+from src.models import VendorSubmission
+from src.tools import compliance_filter, hot_picks, kb_search, stock_by_warehouse, vendor_validate
 
 
 def _record(name: str, args: dict, result: Any, start: float, request_id: str = "") -> dict:
@@ -36,12 +36,15 @@ def _record(name: str, args: dict, result: Any, start: float, request_id: str = 
         tracer = _get_tracer_by_id(request_id)
         if tracer:
             from src.observability import ToolCallRecord
-            tracer._tool_records.append(ToolCallRecord(
-                name=name,
-                args=args,
-                latency_ms=elapsed_ms,
-                result_summary=str(result)[:200],
-            ))
+
+            tracer._tool_records.append(
+                ToolCallRecord(
+                    name=name,
+                    args=args,
+                    latency_ms=elapsed_ms,
+                    result_summary=str(result)[:200],
+                )
+            )
     return record
 
 
@@ -49,6 +52,7 @@ def _record(name: str, args: dict, result: Any, start: float, request_id: str = 
 # Chain A - SALES_RECO
 # hot_picks -> compliance_filter -> ranked list (blocked excluded, review flagged)
 # ---------------------------------------------------------------------------
+
 
 def sales_chain(state: dict[str, Any]) -> Command:
     rid = state.get("request_id", "")
@@ -95,7 +99,9 @@ def sales_chain(state: dict[str, Any]) -> Command:
     t0 = time.monotonic()
     picks = hot_picks(state=state_code, budget=float(budget))
     pick_ids = [p.product_id for p in picks]
-    tool_results.append(_record("hot_picks", {"state": state_code, "budget": budget}, pick_ids, t0, rid))
+    tool_results.append(
+        _record("hot_picks", {"state": state_code, "budget": budget}, pick_ids, t0, rid)
+    )
 
     if not picks:
         return Command(
@@ -110,7 +116,15 @@ def sales_chain(state: dict[str, Any]) -> Command:
     # compliance_filter
     t1 = time.monotonic()
     compliance = compliance_filter(state=state_code, product_ids=pick_ids)
-    tool_results.append(_record("compliance_filter", {"state": state_code, "product_ids": pick_ids}, len(compliance), t1, rid))
+    tool_results.append(
+        _record(
+            "compliance_filter",
+            {"state": state_code, "product_ids": pick_ids},
+            len(compliance),
+            t1,
+            rid,
+        )
+    )
 
     # Build enriched product list (exclude blocked, flag review)
     products_out = []
@@ -120,16 +134,18 @@ def sales_chain(state: dict[str, Any]) -> Command:
         p = get_product_by_id(cr.product_id)
         if p is None:
             continue
-        products_out.append({
-            "product_id": p.product_id,
-            "sku": p.sku,
-            "name": p.name,
-            "category": p.category,
-            "price": p.price,
-            "popularity_score": p.popularity_score,
-            "status": cr.status,
-            "reason_code": cr.reason_code,
-        })
+        products_out.append(
+            {
+                "product_id": p.product_id,
+                "sku": p.sku,
+                "name": p.name,
+                "category": p.category,
+                "price": p.price,
+                "popularity_score": p.popularity_score,
+                "status": cr.status,
+                "reason_code": cr.reason_code,
+            }
+        )
 
     return Command(
         update={
@@ -149,6 +165,7 @@ def sales_chain(state: dict[str, Any]) -> Command:
 # Chain B - COMPLIANCE_CHECK
 # resolve_product -> compliance_filter -> (if blocked) find_alternatives
 # ---------------------------------------------------------------------------
+
 
 def compliance_chain(state: dict[str, Any]) -> Command:
     rid = state.get("request_id", "")
@@ -174,7 +191,10 @@ def compliance_chain(state: dict[str, Any]) -> Command:
         return Command(
             update={
                 "chain_output": {"error": f"Product not found: {ref!r}"},
-                "response_text": f"Could not find product '{ref}'. Please provide a valid SKU (e.g., SKU-1003) or product name.",
+                "response_text": (
+                    f"Could not find product '{ref}'. "
+                    "Please provide a valid SKU (e.g., SKU-1003) or product name."
+                ),
             },
             goto="output_guard",
         )
@@ -184,12 +204,15 @@ def compliance_chain(state: dict[str, Any]) -> Command:
     # compliance_filter
     t0 = time.monotonic()
     compliance = compliance_filter(state=state_code, product_ids=[product.product_id])
-    tool_results.append(_record(
-        "compliance_filter",
-        {"state": state_code, "product_ids": [product.product_id]},
-        compliance[0].status if compliance else "unknown",
-        t0, rid,
-    ))
+    tool_results.append(
+        _record(
+            "compliance_filter",
+            {"state": state_code, "product_ids": [product.product_id]},
+            compliance[0].status if compliance else "unknown",
+            t0,
+            rid,
+        )
+    )
 
     result = compliance[0]
     output: dict = {
@@ -214,8 +237,13 @@ def compliance_chain(state: dict[str, Any]) -> Command:
             exclude_ids=[product.product_id],
         )
         output["alternatives"] = [
-            {"product_id": a.product_id, "sku": a.sku, "name": a.name,
-             "price": a.price, "popularity_score": a.popularity_score}
+            {
+                "product_id": a.product_id,
+                "sku": a.sku,
+                "name": a.name,
+                "price": a.price,
+                "popularity_score": a.popularity_score,
+            }
             for a in alts
         ]
 
@@ -229,6 +257,7 @@ def compliance_chain(state: dict[str, Any]) -> Command:
 # Chain C - VENDOR_ONBOARDING
 # vendor_validate(VendorSubmission) -> checklist + status
 # ---------------------------------------------------------------------------
+
 
 def vendor_chain(state: dict[str, Any]) -> Command:
     rid = state.get("request_id", "")
@@ -249,12 +278,15 @@ def vendor_chain(state: dict[str, Any]) -> Command:
 
     t0 = time.monotonic()
     validation = vendor_validate(submission)
-    tool_results.append(_record(
-        "vendor_validate",
-        submission.model_dump(),
-        validation.status,
-        t0, rid,
-    ))
+    tool_results.append(
+        _record(
+            "vendor_validate",
+            submission.model_dump(),
+            validation.status,
+            t0,
+            rid,
+        )
+    )
 
     return Command(
         update={
@@ -277,6 +309,7 @@ def vendor_chain(state: dict[str, Any]) -> Command:
 # resolve_product -> stock_by_warehouse -> warehouse qty table
 # ---------------------------------------------------------------------------
 
+
 def ops_chain(state: dict[str, Any]) -> Command:
     rid = state.get("request_id", "")
     params = state.get("extracted_params") or {}
@@ -290,7 +323,9 @@ def ops_chain(state: dict[str, Any]) -> Command:
         return Command(
             update={
                 "chain_output": {"error": f"Product not found: {ref!r}"},
-                "response_text": f"Could not find product '{ref}'. Please provide a valid SKU or name.",
+                "response_text": (
+                    f"Could not find product '{ref}'. Please provide a valid SKU or name."
+                ),
             },
             goto="output_guard",
         )
@@ -299,19 +334,26 @@ def ops_chain(state: dict[str, Any]) -> Command:
 
     t0 = time.monotonic()
     inv = stock_by_warehouse(product_id=product.product_id)
-    tool_results.append(_record(
-        "stock_by_warehouse",
-        {"product_id": product.product_id},
-        inv.total_qty,
-        t0, rid,
-    ))
+    tool_results.append(
+        _record(
+            "stock_by_warehouse",
+            {"product_id": product.product_id},
+            inv.total_qty,
+            t0,
+            rid,
+        )
+    )
 
     return Command(
         update={
             "tool_results": tool_results,
             "chain_output": {
                 "intent": "OPS_STOCK",
-                "product": {"product_id": product.product_id, "sku": product.sku, "name": product.name},
+                "product": {
+                    "product_id": product.product_id,
+                    "sku": product.sku,
+                    "name": product.name,
+                },
                 "total_qty": inv.total_qty,
                 "warehouses": [w.model_dump() for w in inv.warehouses],
             },
@@ -325,6 +367,7 @@ def ops_chain(state: dict[str, Any]) -> Command:
 # kb_search -> matching doc snippets
 # ---------------------------------------------------------------------------
 
+
 def kb_chain(state: dict[str, Any]) -> Command:
     rid = state.get("request_id", "")
     query = state.get("user_query", "")
@@ -334,7 +377,9 @@ def kb_chain(state: dict[str, Any]) -> Command:
 
     t0 = time.monotonic()
     results = kb_search(query=query, user_type=user_type)
-    tool_results.append(_record("kb_search", {"query": query, "user_type": user_type}, len(results), t0, rid))
+    tool_results.append(
+        _record("kb_search", {"query": query, "user_type": user_type}, len(results), t0, rid)
+    )
 
     return Command(
         update={
@@ -351,6 +396,7 @@ def kb_chain(state: dict[str, Any]) -> Command:
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _session_state(state: dict[str, Any]) -> str | None:
     sess = state.get("_session") or {}

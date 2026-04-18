@@ -12,12 +12,11 @@ Classification always returns exactly one of the 5 required intents.
 from __future__ import annotations
 
 import re
-from typing import Optional
 
 from langsmith import traceable  # type: ignore[import]
 
 from src.logging_config import logger
-from src.models import ExtractedParams, IntentClassification, VALID_INTENTS
+from src.models import VALID_INTENTS, ExtractedParams, IntentClassification
 from src.settings import configs
 from src.state import SessionState
 
@@ -26,11 +25,56 @@ from src.state import SessionState
 # ---------------------------------------------------------------------------
 
 US_STATES: set[str] = {
-    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
-    "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
-    "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
-    "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
-    "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
+    "AL",
+    "AK",
+    "AZ",
+    "AR",
+    "CA",
+    "CO",
+    "CT",
+    "DE",
+    "FL",
+    "GA",
+    "HI",
+    "ID",
+    "IL",
+    "IN",
+    "IA",
+    "KS",
+    "KY",
+    "LA",
+    "ME",
+    "MD",
+    "MA",
+    "MI",
+    "MN",
+    "MS",
+    "MO",
+    "MT",
+    "NE",
+    "NV",
+    "NH",
+    "NJ",
+    "NM",
+    "NY",
+    "NC",
+    "ND",
+    "OH",
+    "OK",
+    "OR",
+    "PA",
+    "RI",
+    "SC",
+    "SD",
+    "TN",
+    "TX",
+    "UT",
+    "VT",
+    "VA",
+    "WA",
+    "WV",
+    "WI",
+    "WY",
 }
 
 # ---------------------------------------------------------------------------
@@ -39,32 +83,92 @@ US_STATES: set[str] = {
 
 KEYWORD_SETS: dict[str, list[str]] = {
     "SALES_RECO": [
-        "hot picks", "hot pick", "recommend", "recommendation", "suggest",
-        "best sellers", "best seller", "top products", "top product",
-        "under $", "budget", "popular", "top picks", "what's hot",
-        "show me products", "give me", "find me",
+        "hot picks",
+        "hot pick",
+        "recommend",
+        "recommendation",
+        "suggest",
+        "best sellers",
+        "best seller",
+        "top products",
+        "top product",
+        "under $",
+        "budget",
+        "popular",
+        "top picks",
+        "what's hot",
+        "show me products",
+        "give me",
+        "find me",
     ],
     "COMPLIANCE_CHECK": [
-        "blocked", "not available", "why can't", "why is", "legal",
-        "compliance", "banned", "restricted", "available in", "can i sell",
-        "is it legal", "is it available", "alternatives", "alternative",
-        "not sell", "cannot sell", "not allowed", "why not",
+        "blocked",
+        "not available",
+        "why can't",
+        "why is",
+        "legal",
+        "compliance",
+        "banned",
+        "restricted",
+        "available in",
+        "can i sell",
+        "is it legal",
+        "is it available",
+        "alternatives",
+        "alternative",
+        "not sell",
+        "cannot sell",
+        "not allowed",
+        "why not",
     ],
     "VENDOR_ONBOARDING": [
-        "vendor", "onboard", "upload", "catalog", "missing fields",
-        "lab report", "net wt", "net weight", "net vol", "submission",
-        "uploading", "product upload", "onboarding", "what do i fix",
-        "what to fix", "missing", "required fields",
+        "vendor",
+        "onboard",
+        "upload",
+        "catalog",
+        "missing fields",
+        "lab report",
+        "net wt",
+        "net weight",
+        "net vol",
+        "submission",
+        "uploading",
+        "product upload",
+        "onboarding",
+        "what do i fix",
+        "what to fix",
+        "missing",
+        "required fields",
     ],
     "OPS_STOCK": [
-        "stock", "warehouse", "inventory", "how much", "quantity",
-        "where is", "available qty", "qty", "on hand", "in stock",
-        "how many", "where can i", "warehouses",
+        "stock",
+        "warehouse",
+        "inventory",
+        "how much",
+        "quantity",
+        "where is",
+        "available qty",
+        "qty",
+        "on hand",
+        "in stock",
+        "how many",
+        "where can i",
+        "warehouses",
     ],
     "GENERAL_KB": [
-        "return", "returns", "shipping", "policy", "sop", "how do i",
-        "what is the process", "procedure", "guide", "documentation",
-        "restocking", "delivery", "freight",
+        "return",
+        "returns",
+        "shipping",
+        "policy",
+        "sop",
+        "how do i",
+        "what is the process",
+        "procedure",
+        "guide",
+        "documentation",
+        "restocking",
+        "delivery",
+        "freight",
     ],
 }
 
@@ -92,11 +196,12 @@ _ORDINAL_RE = re.compile(r"\b(first|second|third|last)\b", re.IGNORECASE)
 # 1. detect_followup
 # ---------------------------------------------------------------------------
 
+
 @traceable(run_type="chain", name="detect_followup")
 def detect_followup(
     query: str,
-    session: Optional[SessionState],
-) -> tuple[bool, Optional[str]]:
+    session: SessionState | None,
+) -> tuple[bool, str | None]:
     """
     Detect if this query is a follow-up referencing a prior result.
 
@@ -120,6 +225,7 @@ def detect_followup(
 # ---------------------------------------------------------------------------
 # 2. extract_params
 # ---------------------------------------------------------------------------
+
 
 @traceable(run_type="chain", name="extract_params")
 def extract_params(query: str) -> ExtractedParams:
@@ -183,6 +289,7 @@ def extract_params(query: str) -> ExtractedParams:
 # ---------------------------------------------------------------------------
 # 3. classify_intent
 # ---------------------------------------------------------------------------
+
 
 def _score_all_intents(query: str) -> dict[str, float]:
     """Return keyword overlap score for each intent (0.0 - 1.0)."""
