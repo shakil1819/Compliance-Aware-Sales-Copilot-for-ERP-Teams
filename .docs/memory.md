@@ -41,3 +41,8 @@
   - one-command run path is explicit
   - architecture overview is concise
   - routing, tools, state, and observability file locations are listed directly
+- README now also contains a Mermaid architecture diagram:
+  - top-level flow is top-to-down
+  - each subgraph is left-to-right
+  - every subgraph has explicit `START` and `END` nodes
+  - invalid and denied branches terminate correctly

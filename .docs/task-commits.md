@@ -54,3 +54,9 @@
 | Task | File(s) | Notes |
 |---|---|---|
 | Submission README rewrite | README.md | Added one-command run, concise architecture overview, and direct module map for routing/tools/state/observability |
+
+## 2026-04-18 - README Mermaid Diagram
+
+| Task | File(s) | Notes |
+|---|---|---|
+| Architecture flow diagram | README.md | Added Mermaid flowchart with LR subgraphs, top-down stage connections, explicit `START` and `END`, and soft styling |

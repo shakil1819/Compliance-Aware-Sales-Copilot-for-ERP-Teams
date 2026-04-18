@@ -188,3 +188,23 @@ Align `README.md` with the stated submission requirements.
 - `README.md` now clearly documents `uv run main.py` as the primary run command.
 - The architecture overview now reflects the actual LangGraph and tool-first flow.
 - The code-location section directly points reviewers to the routing, tools, state, and observability modules.
+
+## 2026-04-18 - README Mermaid Diagram
+
+### Task
+
+Add an architecture and flow Mermaid diagram to `README.md`.
+
+### Actions
+
+1. Added a Mermaid `flowchart TD` diagram under the architecture section.
+2. Structured each major stage as a left-to-right subgraph.
+3. Connected subgraphs top-to-down across ingress, routing, authorization, business chains, and response tracing.
+4. Added explicit `START` and `END` nodes in each subgraph.
+5. Styled nodes and subgraphs with soft colors for readability.
+6. Corrected the diagram so invalid and denied branches terminate instead of re-entering the main flow.
+
+### Findings
+
+- The README now includes a reviewer-friendly architecture diagram that matches the implemented control flow.
+- The diagram keeps the keyword-first router, optional OpenAI fallback, deterministic tool chains, and trace logging visible in one view.

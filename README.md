@@ -17,19 +17,117 @@ Notes:
 
 ## Architecture Overview
 
-Request flow:
-- `validate_user` checks `user_type` first.
-- `classify_intent` resolves follow-up references, extracts parameters, and routes cheaply with keyword scoring first. If the query is ambiguous and an API key is configured, it falls back to OpenAI structured output.
-- `authorize_tools` enforces per-user-type tool allowlists before any business tool runs.
-- One of five canonical chains executes:
-  - `SALES_RECO`: `hot_picks -> compliance_filter`
-  - `COMPLIANCE_CHECK`: product resolve -> `compliance_filter` -> alternatives if blocked
-  - `VENDOR_ONBOARDING`: `vendor_validate`
-  - `OPS_STOCK`: product resolve -> `stock_by_warehouse`
-  - `GENERAL_KB`: `kb_search`
-- `output_guard` asserts compliance safety and redacts PII before any optional LLM formatting.
-- `format_response` always produces deterministic text first. Optional LLM polishing is enabled only when configured.
-- `log_trace` writes structured request telemetry to `.logs/traces.jsonl`.
+```mermaid
+flowchart TD
+    classDef startEnd fill:#E8F5E9,stroke:#2E7D32,color:#1B4332,stroke-width:2px
+    classDef process fill:#EAF4FF,stroke:#4F83CC,color:#16324F,stroke-width:1.5px
+    classDef decision fill:#FFF7E8,stroke:#D4A24C,color:#5B4636,stroke-width:1.5px
+    classDef tool fill:#E8F7F2,stroke:#4CA68B,color:#134E4A,stroke-width:1.5px
+    classDef trace fill:#F4F6F8,stroke:#78909C,color:#263238,stroke-width:1.5px
+    classDef llm fill:#F9F3E8,stroke:#C28B4E,color:#5A3E1B,stroke-width:1.5px
+
+    subgraph INGRESS["`Ingress`"]
+        direction LR
+        I0["`START`"]:::startEnd --> I1["`user query`"]:::process
+        I1 --> I2["`validate_user`"]:::decision
+        I2 -- "`valid`" --> I3["`validated request`"]:::process
+        I2 -- "`invalid user_type`" --> I5["`END`"]:::startEnd
+        I3 --> I4["`END`"]:::startEnd
+    end
+
+    subgraph ROUTING["`Routing`"]
+        direction LR
+        R0["`START`"]:::startEnd --> R1["`detect_followup`"]:::decision
+        R1 --> R2["`extract_params`"]:::process
+        R2 --> R3["`keyword router`"]:::decision
+        R3 -- "`keyword match`" --> R5["`intent selected`"]:::process
+        R3 -- "`ambiguous`" --> R4["`OpenAI fallback`"]:::llm
+        R4 --> R5
+        R5 --> R6["`END`"]:::startEnd
+    end
+
+    subgraph AUTH["`Authorization`"]
+        direction LR
+        A0["`START`"]:::startEnd --> A1["`authorize_tools`"]:::decision
+        A1 -- "`allowed`" --> A2["`allowed intent path`"]:::process
+        A1 -- "`denied`" --> A4["`denied response`"]:::trace
+        A2 --> A3["`END`"]:::startEnd
+        A4 --> A5["`END`"]:::startEnd
+    end
+
+    subgraph SALES["`SALES_RECO`"]
+        direction LR
+        S0["`START`"]:::startEnd --> S1["`hot_picks`"]:::tool
+        S1 --> S2["`compliance_filter`"]:::tool
+        S2 --> S3["`END`"]:::startEnd
+    end
+
+    subgraph COMPLIANCE["`COMPLIANCE_CHECK`"]
+        direction LR
+        C0["`START`"]:::startEnd --> C1["`resolve_product`"]:::tool
+        C1 --> C2["`compliance_filter`"]:::tool
+        C2 --> C3["`find_alternatives`"]:::tool
+        C3 --> C4["`END`"]:::startEnd
+    end
+
+    subgraph VENDOR["`VENDOR_ONBOARDING`"]
+        direction LR
+        V0["`START`"]:::startEnd --> V1["`vendor_validate`"]:::tool
+        V1 --> V2["`END`"]:::startEnd
+    end
+
+    subgraph OPS["`OPS_STOCK`"]
+        direction LR
+        O0["`START`"]:::startEnd --> O1["`resolve_product`"]:::tool
+        O1 --> O2["`stock_by_warehouse`"]:::tool
+        O2 --> O3["`END`"]:::startEnd
+    end
+
+    subgraph KB["`GENERAL_KB`"]
+        direction LR
+        K0["`START`"]:::startEnd --> K1["`kb_search`"]:::tool
+        K1 --> K2["`END`"]:::startEnd
+    end
+
+    subgraph RESPONSE["`Response And Trace`"]
+        direction LR
+        P0["`START`"]:::startEnd --> P1["`output_guard`"]:::decision
+        P1 --> P2["`deterministic formatter`"]:::process
+        P2 --> P3["`optional LLM polish`"]:::llm
+        P3 --> P4["`RequestTracer`"]:::trace
+        P4 --> P5["`END`"]:::startEnd
+    end
+
+    I4 --> R0
+    R6 --> A0
+    A3 -- "`SALES_RECO`" --> S0
+    A3 -- "`COMPLIANCE_CHECK`" --> C0
+    A3 -- "`VENDOR_ONBOARDING`" --> V0
+    A3 -- "`OPS_STOCK`" --> O0
+    A3 -- "`GENERAL_KB`" --> K0
+    S3 --> P0
+    C4 --> P0
+    V2 --> P0
+    O3 --> P0
+    K2 --> P0
+
+    style INGRESS fill:#F7FBFF,stroke:#B7C7D6,stroke-width:1px,color:#1F2937
+    style ROUTING fill:#F9FCFF,stroke:#B7C7D6,stroke-width:1px,color:#1F2937
+    style AUTH fill:#FFFCF5,stroke:#D8C59A,stroke-width:1px,color:#1F2937
+    style SALES fill:#F4FBF7,stroke:#AFCFBF,stroke-width:1px,color:#1F2937
+    style COMPLIANCE fill:#F4FBF7,stroke:#AFCFBF,stroke-width:1px,color:#1F2937
+    style VENDOR fill:#F4FBF7,stroke:#AFCFBF,stroke-width:1px,color:#1F2937
+    style OPS fill:#F4FBF7,stroke:#AFCFBF,stroke-width:1px,color:#1F2937
+    style KB fill:#F4FBF7,stroke:#AFCFBF,stroke-width:1px,color:#1F2937
+    style RESPONSE fill:#F8FAFB,stroke:#B7C7D6,stroke-width:1px,color:#1F2937
+```
+
+Flow notes:
+- `validate_user` runs first. Invalid `user_type` requests stop before routing or tool calls.
+- `classify_intent` keeps routing cheap with keyword logic first and only uses OpenAI fallback when the query is ambiguous and `OPENAI_API_KEY` is configured.
+- `authorize_tools` enforces per-user-type allowlists before any deterministic business tool runs.
+- Each chain is tool-first. LLMs may classify or polish text, but they do not decide live compliance or inventory truth.
+- `output_guard` and `RequestTracer` close every request with compliance-safe output and structured telemetry.
 
 Design constraints:
 - Exactly 5 intents are routed.
