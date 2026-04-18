@@ -60,3 +60,19 @@ Re-check the latest version of `C:\Users\Expert\.cursor\plans\ai_chat_service_po
   - stale references to `db.resolve_product`, SQL queries, and `input_guard`
   - unclear basket-action handling for the follow-up demo query
   - unmeasured latency and accuracy claims
+
+## 2026-04-18 - Constraint Update
+
+### Task
+
+User clarified that LangChain and LangGraph are mandatory because the system is an agentic backend.
+
+### Impact on evaluation
+
+- Prior "over-engineered" critiques should no longer treat LangChain or LangGraph as optional complexity.
+- Under this constraint, plan v5 is broadly aligned with the required architecture direction.
+- Remaining critique should focus on:
+  - internal consistency
+  - follow-up basket semantics
+  - stale terminology and plan drift
+  - unmeasured claims
