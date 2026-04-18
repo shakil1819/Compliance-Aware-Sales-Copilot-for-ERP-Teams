@@ -2,18 +2,26 @@
 
 Tool-first agentic backend over mock ERP data with deterministic compliance, LangGraph orchestration, minimal session state, and structured observability.
 
+<img width="1916" height="909" alt="image" src="https://github.com/user-attachments/assets/d125afcd-ea91-4f8b-8592-8684d1eb8422" />
+<img width="1606" height="899" alt="image" src="https://github.com/user-attachments/assets/c90da3f5-496b-453b-8f3f-5ac3b5714d08" />
+
 ## How To Run
+
+
+https://github.com/user-attachments/assets/054630a5-af12-4d07-8a77-a60c95095e5d
+
 
 One command:
 
 ```bash
-uv run main.py
+uv sync && uv run streamlit run main.py # Linux/Mac
+uv sync; uv run streamlit run main.py # Windows
 ```
 
 Notes:
 - `uv run` uses the project environment and lockfile.
 - Copy `.env.example` to `.env` only if you want optional OpenAI-backed classification fallback or optional LLM response polishing.
-- No database setup. No Docker. Data loads from `data/seed_data (3).json` at startup.
+- No database setup. No Docker. Data loads from `data/seed_data (3).json` at startup and kept in-memory as if it were redis cached.
 
 ## Architecture Overview
 
@@ -168,6 +176,9 @@ All runtime settings are centralized in `src/settings.py` and exposed through `c
 | `LOG_LEVEL` | `INFO` | Application log verbosity |
 | `LOG_DIR` | `.logs` | Directory for application and trace logs |
 | `LOG_FILE` | `application.log` | Main application log filename |
+
+## Observability & Monitoring 
+<img width="1907" height="909" alt="image" src="https://github.com/user-attachments/assets/777caf13-3b2b-4b8d-b2eb-bf32c3c7270f" />
 
 ## Testing
 
