@@ -17,6 +17,12 @@ from __future__ import annotations
 import uuid
 from typing import Any, Optional
 
+# langsmith_config must be imported BEFORE LangGraph/LangChain so os.environ
+# is configured before those libraries initialise their tracing callbacks.
+from src import langsmith_config  # noqa: F401
+
+from langsmith import traceable  # type: ignore[import]
+
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph, START, END
 from langgraph.types import Command
@@ -348,6 +354,11 @@ def build_graph() -> Any:
 # run_query - main entry point for a single turn
 # ---------------------------------------------------------------------------
 
+@traceable(
+    run_type="chain",
+    name="chat_turn",
+    metadata={"service": "ai-chat-service-poc"},
+)
 def run_query(
     graph: Any,
     user_query: str,
@@ -358,8 +369,22 @@ def run_query(
     """
     Execute one chat turn through the graph.
     Returns a dict with at minimum 'response_text', 'intent', 'request_id'.
+
+    Decorated with @traceable so LangSmith captures this as the root span.
+    All LangGraph node executions and LLM calls nest under this span automatically.
     """
     request_id = str(uuid.uuid4())
+
+    # Attach session/request metadata to this LangSmith trace immediately so
+    # every span in the tree is searchable by request_id, session_id, user_type.
+    langsmith_config.tag_current_run(
+        metadata={
+            "request_id": request_id,
+            "session_id": session_id,
+            "user_type": user_type,
+        },
+        tags=[user_type],
+    )
 
     logger.info(
         "Running query request_id={} session_id={} user_type={}",
@@ -401,6 +426,16 @@ def run_query(
             intent = final_state.get("intent") or ""
             params = final_state.get("extracted_params") or {}
             chain_output = final_state.get("chain_output") or {}
+
+            # Enrich the LangSmith trace with resolved intent + classification tier
+            langsmith_config.tag_current_run(
+                metadata={
+                    "intent": intent,
+                    "classification_tier": final_state.get("classification_tier"),
+                    "degraded": final_state.get("degraded", False),
+                },
+                tags=[intent] if intent else [],
+            )
 
             # Only SALES_RECO produces a selectable product list for follow-ups.
             # Compliance/ops/vendor/kb turns must NOT overwrite last_intent or
