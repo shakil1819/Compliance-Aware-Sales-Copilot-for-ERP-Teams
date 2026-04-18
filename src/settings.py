@@ -83,7 +83,7 @@ class Settings(BaseSettings):
     environment: str = "development"
 
     openai_api_key: str | None = None
-    use_llm_formatting: bool = False
+    use_llm_formatting: bool = True
 
     # LangSmith observability — all optional, system works without them
     langsmith_api_key: str | None = None
