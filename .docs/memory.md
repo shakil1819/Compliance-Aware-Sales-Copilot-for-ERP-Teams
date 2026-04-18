@@ -37,3 +37,7 @@
   - runtime code now reads config through `configs.<key>`
   - application logs write to `.logs/application.log`
   - tests still pass
+- README updated to meet submission requirements:
+  - one-command run path is explicit
+  - architecture overview is concise
+  - routing, tools, state, and observability file locations are listed directly

@@ -169,3 +169,22 @@ Implement proper application logging with Loguru and centralize configuration in
 - Application logs now write to `.logs/application.log`.
 - Structured per-request traces still write to `.logs/traces.jsonl`.
 - Full test suite still passes after the refactor.
+
+## 2026-04-18 - README Submission Alignment
+
+### Task
+
+Align `README.md` with the stated submission requirements.
+
+### Actions
+
+1. Rewrote `README.md` to make the one-command run path explicit.
+2. Reduced the architecture section to a concise single-page overview.
+3. Added a direct module map for routing, tools, state, and observability.
+4. Kept configuration and test instructions brief and aligned with the current codebase.
+
+### Findings
+
+- `README.md` now clearly documents `uv run main.py` as the primary run command.
+- The architecture overview now reflects the actual LangGraph and tool-first flow.
+- The code-location section directly points reviewers to the routing, tools, state, and observability modules.

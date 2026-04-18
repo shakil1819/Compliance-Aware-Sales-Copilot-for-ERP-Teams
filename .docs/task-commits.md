@@ -48,3 +48,9 @@
 | Logging bootstrap | src/logging_config.py | Loguru console + file sinks |
 | Runtime logging refactor | src/router.py, src/guardrails.py, src/graph.py, src/observability.py, src/data.py, src/state.py, main.py | Replaced stdlib logging and direct env reads |
 | Config docs | README.md, .env.example, pyproject.toml, uv.lock | Added log-related config surface and dependency |
+
+## 2026-04-18 - README Submission Alignment
+
+| Task | File(s) | Notes |
+|---|---|---|
+| Submission README rewrite | README.md | Added one-command run, concise architecture overview, and direct module map for routing/tools/state/observability |
