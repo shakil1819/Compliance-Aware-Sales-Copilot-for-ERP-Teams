@@ -1,4 +1,4 @@
-# AI Chat Service PoC
+# Compliance-Aware Sales Copilot for ERP Teams
 
 Tool-first agentic backend over mock ERP data with deterministic compliance, LangGraph orchestration, minimal session state, and structured observability.
 
