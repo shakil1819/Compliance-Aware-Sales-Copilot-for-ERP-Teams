@@ -282,3 +282,73 @@ The plan has good instincts around separation of concerns, observability, and de
 ### Updated conclusion
 
 Plan v4 is better than the earlier draft, but the answer to "is it over-engineered relative to the problem statement" is still yes. It improved internal consistency, not scope discipline.
+
+## Re-check Against Plan v5
+
+### Verdict shift
+
+Plan v5 is materially better than v4. It is no longer badly over-engineered.
+
+It now aligns with the problem statement on the major points:
+
+- exactly 5 intents
+- in-memory seed data
+- minimal in-memory session state
+- deterministic tools
+- post-classification authorization
+- deterministic-first response formatting
+- LLM as optional augmentation instead of mandatory dependency
+
+This is a substantial improvement.
+
+### What is now good
+
+1. The previous sixth-intent violation is fixed.
+   - Follow-up handling is now a pre-router resolution step.
+   - The graph routes only the required five intents.
+
+2. Scope is reduced to match the prompt.
+   - SQLite is removed for data and memory.
+   - In-memory data and session state are now the default.
+
+3. Authorization order is now correct.
+   - `validate_user -> classify_intent -> authorize_tools -> chain`
+
+4. LLM failure handling is safer.
+   - It no longer silently falls back to `GENERAL_KB`.
+   - Best-keyword fallback or fail-closed is a defensible choice.
+
+5. `review` status is now at least explicitly defined.
+   - The rule is deterministic and testable.
+
+### Remaining issues
+
+1. There is still editing drift and internal inconsistency.
+   - `extract_params()` still references `db.resolve_product()` even though the plan moved to `data.py`.
+   - The disqualifier checklist still says "deterministic SQL queries" even though the plan is now in-memory.
+   - The checklist also still mentions `input_guard` even though the graph now uses `validate_user` and `authorize_tools`.
+   - The implementation sequence still says `db-layer` even though the todo is `data-layer`.
+
+2. The follow-up design is still underspecified.
+   - The prompt asks to use prior context for "add 2 of the first one to the basket".
+   - Reusing `SALES_RECO` as the intent is compliant with the five-intent rule, but the plan still does not cleanly explain what code path performs the basket action versus the normal recommendation chain.
+   - Saying "sales_chain runs with the resolved product" is not enough, because `sales_chain` is defined as `hot_picks -> compliance_filter`, not basket mutation or basket simulation.
+
+3. Some latency and accuracy claims are still asserted, not measured.
+   - `~80%` keyword coverage
+   - `~300ms` Tier-2 latency
+   - `<1ms` tool execution
+   - These are plausible, but they are still estimates rather than repo-backed measurements.
+
+4. The `review` semantics are now explicit, but still debatable as business logic.
+   - Treating every `lab_report_required=true` item as `review` may be acceptable for the exercise.
+   - But it is still a policy choice, not something directly stated by the prompt.
+   - This should be described as a declared compliance rule, not as an inevitable interpretation.
+
+5. LangGraph is still optional complexity.
+   - It is no longer the main problem.
+   - But if time is tight, the fastest path to a strong demo is still plain Python orchestration first.
+
+### Current bottom line
+
+Plan v5 is mostly acceptable and much closer to what should actually be built. I would no longer call it heavily over-engineered. I would call it slightly overbuilt but defensible, with the main remaining risk being editing drift and the unclear follow-up basket path.

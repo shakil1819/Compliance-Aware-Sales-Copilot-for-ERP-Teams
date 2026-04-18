@@ -45,3 +45,18 @@ Re-check `Problem_Statement.md` directly and re-evaluate the latest plan version
 - It still remains over-engineered relative to the prompt.
 - It still violates the exact-five-intents rule because `FOLLOW_UP` remains a routed intent.
 - It still adds optional complexity before proving the minimum runnable PoC.
+
+## 2026-04-18 - Plan v5 Re-check
+
+### Task
+
+Re-check the latest version of `C:\Users\Expert\.cursor\plans\ai_chat_service_poc_6124c61a.plan.md`.
+
+### Findings
+
+- Plan v5 is materially improved and no longer badly over-engineered.
+- The largest prior issues are fixed: no sixth intent, no SQLite dependency, better auth order, safer LLM fallback.
+- Remaining issues are mostly consistency and execution-detail problems:
+  - stale references to `db.resolve_product`, SQL queries, and `input_guard`
+  - unclear basket-action handling for the follow-up demo query
+  - unmeasured latency and accuracy claims
