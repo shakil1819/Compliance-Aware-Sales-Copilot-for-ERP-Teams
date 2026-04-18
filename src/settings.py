@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     use_llm_formatting: bool = False
 
+    # LangSmith observability — all optional, system works without them
+    langsmith_api_key: str | None = None
+    langsmith_endpoint: str = "https://api.smith.langchain.com"
+    langsmith_tracing: bool = False
+    langsmith_project: str = "ai-chat-service-poc"
+
     log_level: str = "INFO"
     log_dir: str = ".logs"
     log_file: str = "application.log"
