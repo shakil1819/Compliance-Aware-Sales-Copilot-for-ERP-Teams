@@ -376,16 +376,89 @@ for i, dq in enumerate(DEMO_QUERIES):
             st.session_state.pending_vendor = dq["vendor_submission"]
             st.rerun()
 
-chat_input = st.chat_input("Ask anything about products, compliance, stock, vendors, or policies…")
+# ---------------------------------------------------------------------------
+# Vendor submission panel (optional structured input for VENDOR_ONBOARDING)
+# ---------------------------------------------------------------------------
+
+with st.expander("📋 Vendor submission JSON (optional — for vendor validation queries)", expanded=False):
+    st.caption(
+        "Paste a JSON object with your product fields. "
+        "This is passed directly to `vendor_validate` alongside your query text. "
+        "You can also prefix your message with `VENDOR_JSON:{...}` in the chat box below."
+    )
+
+    _vs_template = """{
+  "name": "My Product",
+  "category": "THC Beverage",
+  "net_wt_oz": 3.5,
+  "net_vol_ml": 100.0,
+  "nicotine_mg": null,
+  "lab_report_attached": false
+}"""
+    vendor_json_text = st.text_area(
+        "Vendor submission JSON",
+        value="",
+        height=160,
+        placeholder=_vs_template,
+        label_visibility="collapsed",
+    )
+
+    _parsed_vendor: dict | None = None
+    if vendor_json_text.strip():
+        try:
+            _parsed_vendor = __import__("json").loads(vendor_json_text)
+            st.success("✅ Valid JSON — will be attached to your next query")
+        except Exception as _je:
+            st.error(f"Invalid JSON: {_je}")
+
+    if _parsed_vendor:
+        st.session_state["_manual_vendor"] = _parsed_vendor
+    else:
+        st.session_state.pop("_manual_vendor", None)
+
+
+# ---------------------------------------------------------------------------
+# Parse VENDOR_JSON: prefix from raw chat input (same as CLI behaviour)
+# ---------------------------------------------------------------------------
+
+def _parse_chat_input(raw: str) -> tuple[str, dict | None]:
+    """
+    Extract optional VENDOR_JSON:{...} prefix from the chat input string.
+    Returns (cleaned_query, vendor_submission_dict_or_None).
+    Matches the CLI prefix behaviour in main.py.
+    """
+    import json as _json
+    if raw.upper().startswith("VENDOR_JSON:"):
+        rest = raw[len("VENDOR_JSON:"):]
+        try:
+            brace_end = rest.index("}") + 1
+            vendor = _json.loads(rest[:brace_end])
+            query = rest[brace_end:].strip() or "Validate this vendor submission"
+            return query, vendor
+        except (ValueError, _json.JSONDecodeError):
+            pass  # fall through — treat the whole string as a plain query
+    return raw, None
+
+
+chat_input = st.chat_input(
+    "Ask anything… or prefix with VENDOR_JSON:{…} for vendor validation"
+)
 
 if chat_input:
+    query_text, inline_vendor = _parse_chat_input(chat_input)
+    # inline prefix takes priority; then the expander panel; then None
+    vendor_payload = inline_vendor or st.session_state.pop("_manual_vendor", None)
+
+    # Show user bubble with the cleaned query text (not the raw JSON prefix)
     with st.chat_message("user"):
         st.caption(USER_TYPE_ICONS.get(user_type, user_type))
-        st.markdown(chat_input)
+        st.markdown(query_text)
+        if vendor_payload:
+            st.caption(f"📋 vendor_submission: `{vendor_payload}`")
 
     with st.chat_message("assistant", avatar="🌿"):
         with st.spinner("Thinking…"):
-            result = _run_turn(chat_input, user_type)
+            result = _run_turn(query_text, user_type, vendor_submission=vendor_payload)
         _render_assistant_turn(result)
 
     st.rerun()
