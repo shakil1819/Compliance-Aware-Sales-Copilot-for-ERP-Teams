@@ -11,15 +11,13 @@ Classification always returns exactly one of the 5 required intents.
 
 from __future__ import annotations
 
-import logging
-import os
 import re
 from typing import Optional
 
+from src.logging_config import logger
 from src.models import ExtractedParams, IntentClassification, VALID_INTENTS
+from src.settings import configs
 from src.state import SessionState
-
-logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # US state codes - hardcoded set prevents false matches on common words
@@ -219,13 +217,12 @@ def classify_intent(
         )
 
     # Tier-2: LLM fallback (only if API key present)
-    api_key = os.environ.get("OPENAI_API_KEY", "")
-    if api_key:
+    if configs.openai_api_key:
         try:
             result = _llm_classify(query)
             return result
         except Exception as exc:
-            logger.warning("LLM classification failed: %s", exc)
+            logger.warning("LLM classification failed: {}", exc)
 
     # Fallback: use best keyword score even if weak
     if best_score > 0:
@@ -246,7 +243,13 @@ def _llm_classify(query: str) -> IntentClassification:
     """Call OpenAI with structured output to classify the intent."""
     from langchain_openai import ChatOpenAI
 
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, timeout=30, max_tokens=100)
+    llm = ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0,
+        timeout=30,
+        max_tokens=100,
+        api_key=configs.openai_api_key,
+    )
     structured = llm.with_structured_output(IntentClassification)
 
     prompt = (

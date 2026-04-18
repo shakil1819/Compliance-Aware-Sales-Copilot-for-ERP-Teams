@@ -10,6 +10,7 @@ dependencies = [
     "langgraph>=1.1.8",
     "loguru>=0.7.3",
     "pydantic>=2.13.2",
+    "pydantic-settings>=2.13.1",
     "python-dotenv>=1.2.2",
 ]
 

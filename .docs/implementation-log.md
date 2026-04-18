@@ -139,3 +139,33 @@ Re-check the updated external fix plan after corrections were applied.
 - It now correctly preserves both `last_intent` and `last_product_ids`.
 - It now correctly routes redaction through the actual LLM prompt path.
 - Only minor cleanup remains: `src/state.py` could type `intent` as `Optional[str]` for clarity.
+
+## 2026-04-18 - Logging And Settings
+
+### Task
+
+Implement proper application logging with Loguru and centralize configuration in `src/settings.py` using `pydantic-settings`.
+
+### Actions
+
+1. Added `pydantic-settings` with `uv add pydantic-settings`.
+2. Created `src/settings.py` with module-level `configs`.
+3. Created `src/logging_config.py` to bootstrap Loguru console and file sinks.
+4. Replaced stdlib logging usage in:
+   - `src/router.py`
+   - `src/guardrails.py`
+   - `src/graph.py`
+   - `src/observability.py`
+   - `src/data.py`
+   - `src/state.py`
+   - `main.py`
+5. Removed direct environment reads for OpenAI and LLM-formatting flags from runtime code and routed them through `configs`.
+6. Updated `.env.example` and `README.md` for the new config surface and log files.
+7. Ran `uv run pytest`.
+
+### Findings
+
+- Centralized config now resolves through `configs.<key>`.
+- Application logs now write to `.logs/application.log`.
+- Structured per-request traces still write to `.logs/traces.jsonl`.
+- Full test suite still passes after the refactor.

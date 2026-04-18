@@ -10,15 +10,11 @@ Type 'vendor: <json>' to pass a vendor submission alongside a query.
 from __future__ import annotations
 
 import json
-import os
-import sys
 import uuid
 
-from dotenv import load_dotenv
-
-load_dotenv()
-
 from src.graph import build_graph, run_query
+from src.logging_config import logger, setup_logging
+from src.settings import configs
 
 _USER_TYPES = ["internal_sales", "portal_vendor", "portal_customer"]
 
@@ -35,6 +31,9 @@ def _pick_user_type() -> str:
 
 
 def main() -> None:
+    setup_logging()
+    logger.info("Starting {} in {} mode", configs.app_name, configs.environment)
+
     print("=== AI Chat Service PoC ===")
     print("Building graph and loading data...")
 
@@ -52,12 +51,14 @@ def main() -> None:
         try:
             raw = input("You: ").strip()
         except (KeyboardInterrupt, EOFError):
+            logger.info("Interactive session interrupted by user")
             print("\nExiting.")
             break
 
         if not raw:
             continue
         if raw.lower() in ("quit", "exit", "q"):
+            logger.info("Interactive session ended by user command")
             print("Goodbye.")
             break
 
@@ -73,6 +74,7 @@ def main() -> None:
                 if not query:
                     query = "Validate this vendor submission"
             except (ValueError, json.JSONDecodeError) as e:
+                logger.error("Failed to parse VENDOR_JSON payload: {}", e)
                 print(f"  [!] Could not parse VENDOR_JSON: {e}")
                 continue
 
@@ -85,9 +87,16 @@ def main() -> None:
                 vendor_submission=vendor_submission,
             )
         except Exception as exc:
+            logger.exception("Unhandled CLI query execution error: {}", exc)
             print(f"  [ERROR] {exc}")
             continue
 
+        logger.info(
+            "CLI response intent={} degraded={} request_id={}",
+            result.get("intent", "?"),
+            result.get("degraded"),
+            result.get("request_id"),
+        )
         print(f"\nAssistant [{result.get('intent', '?')}]:")
         print(result["response_text"])
         if result.get("degraded"):

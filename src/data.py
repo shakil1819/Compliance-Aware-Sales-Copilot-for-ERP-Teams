@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from src.logging_config import logger
 from src.models import Product, InventoryEntry, Customer, Vendor, KBDoc
 
 # ---------------------------------------------------------------------------
@@ -31,8 +32,10 @@ def load_seed_data(path: str = "data/seed_data (3).json") -> None:
     """Parse seed_data.json into typed Python objects. Call once at startup."""
     global _loaded
     if _loaded:
+        logger.debug("Seed data already loaded, skipping reload")
         return
 
+    logger.info("Loading seed data from {}", path)
     raw = json.loads(Path(path).read_text(encoding="utf-8"))
 
     global _products, _inventory, _customers, _vendors, _kb_docs
@@ -48,6 +51,14 @@ def load_seed_data(path: str = "data/seed_data (3).json") -> None:
     _products_by_sku = {p.sku: p for p in _products}
 
     _loaded = True
+    logger.info(
+        "Seed data loaded products={} inventory={} customers={} vendors={} kb_docs={}",
+        len(_products),
+        len(_inventory),
+        len(_customers),
+        len(_vendors),
+        len(_kb_docs),
+    )
 
 
 # ---------------------------------------------------------------------------

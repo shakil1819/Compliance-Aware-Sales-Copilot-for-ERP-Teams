@@ -12,7 +12,6 @@ LLM explanation is optional (USE_LLM_FORMATTING env flag).
 
 from __future__ import annotations
 
-import logging
 import time
 from typing import Any
 
@@ -22,8 +21,6 @@ from src.data import resolve_product, find_alternatives, get_product_by_id
 from src.tools import hot_picks, compliance_filter, stock_by_warehouse, vendor_validate, kb_search
 from src.models import VendorSubmission
 from src._registry import get_tracer as _get_tracer_by_id
-
-logger = logging.getLogger(__name__)
 
 
 def _record(name: str, args: dict, result: Any, start: float, request_id: str = "") -> dict:

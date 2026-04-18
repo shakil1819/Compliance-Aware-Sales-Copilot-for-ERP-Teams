@@ -31,3 +31,9 @@
 - Updated fix plan re-check:
   - now safe to implement
   - only minor cleanup suggestion remains around `update_session()` intent typing
+- Logging/settings update completed:
+  - `src/settings.py` added with `configs`
+  - `src/logging_config.py` added with Loguru bootstrap
+  - runtime code now reads config through `configs.<key>`
+  - application logs write to `.logs/application.log`
+  - tests still pass

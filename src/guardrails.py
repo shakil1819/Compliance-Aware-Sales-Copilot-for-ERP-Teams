@@ -9,14 +9,12 @@ output_guard    - post-chain: asserts no blocked products leaked into response
 from __future__ import annotations
 
 import copy
-import logging
 from typing import Any
 
 from langgraph.types import Command
 
+from src.logging_config import logger
 from src.models import TOOL_ALLOWLIST, INTENT_TOOLS, VALID_USER_TYPES
-
-logger = logging.getLogger(__name__)
 
 # Fields considered PII in chain output dicts
 _PII_KEYS = {"name", "customer_id", "vendor_id", "email", "phone", "address"}
@@ -78,7 +76,7 @@ def authorize_tools(state: dict[str, Any]) -> Command:
             f"{user_type} cannot access tool(s) {sorted(denied)} "
             f"required by intent {intent}"
         )
-        logger.warning("Tool authorization denied: %s", reason)
+        logger.warning("Tool authorization denied: {}", reason)
         return Command(
             update={
                 "blocked_reason": reason,

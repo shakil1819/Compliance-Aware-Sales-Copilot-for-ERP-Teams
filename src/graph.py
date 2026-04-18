@@ -14,8 +14,6 @@ In-memory session dict. LLM timeout=30 (set in router._llm_classify).
 
 from __future__ import annotations
 
-import logging
-import os
 import uuid
 from typing import Any, Optional
 
@@ -27,12 +25,12 @@ from typing_extensions import TypedDict
 from src.data import load_seed_data
 from src.guardrails import validate_user, authorize_tools, output_guard
 from src.chains import sales_chain, compliance_chain, vendor_chain, ops_chain, kb_chain
+from src.logging_config import logger
 from src.router import detect_followup, extract_params, classify_intent, ClassificationError
+from src.settings import configs
 from src.state import get_session, update_session
-from src.observability import RequestTracer, estimate_tokens
+from src.observability import RequestTracer
 from src._registry import get_tracer as _registry_get, register_tracer, unregister_tracer
-
-logger = logging.getLogger(__name__)
 
 
 def _get_tracer(state: dict) -> Optional[RequestTracer]:
@@ -128,7 +126,7 @@ def node_classify_intent(state: AgentState) -> Command:
             tier = classification.tier
             low_conf = classification.low_confidence
         except ClassificationError as e:
-            logger.error("Classification failed: %s", e)
+            logger.error("Classification failed: {}", e)
             return Command(
                 update={
                     "blocked_reason": str(e),
@@ -171,14 +169,13 @@ def format_response(state: AgentState) -> Command:
     text = _format_deterministic(intent, chain_output, degraded, degraded_reason)
 
     # Optional LLM explanation - uses redacted output so LLM never sees raw PII
-    use_llm = os.environ.get("USE_LLM_FORMATTING", "false").lower() == "true"
-    if use_llm and os.environ.get("OPENAI_API_KEY"):
+    if configs.use_llm_formatting and configs.openai_api_key:
         try:
             redacted_output = state.get("redacted_chain_output") or chain_output
             redacted_text = _format_deterministic(intent, redacted_output, degraded, degraded_reason)
             text = _format_with_llm(intent, redacted_text, tracer)
         except Exception as exc:
-            logger.warning("LLM formatting failed, using deterministic output: %s", exc)
+            logger.warning("LLM formatting failed, using deterministic output: {}", exc)
 
     return Command(update={"response_text": text}, goto="log_trace")
 
@@ -276,7 +273,13 @@ def _format_deterministic(intent: str, output: dict, degraded: bool, degraded_re
 def _format_with_llm(intent: str, deterministic_text: str, tracer: Any) -> str:
     from langchain_openai import ChatOpenAI
 
-    llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, timeout=30, max_tokens=500)
+    llm = ChatOpenAI(
+        model="gpt-4o-mini",
+        temperature=0,
+        timeout=30,
+        max_tokens=500,
+        api_key=configs.openai_api_key,
+    )
     prompt = (
         f"You are a helpful B2B product assistant. "
         f"Rephrase the following structured data as a clear, concise response. "
@@ -317,6 +320,7 @@ def error_response(state: AgentState) -> Command:
 
 def build_graph() -> Any:
     """Build and compile the LangGraph StateGraph."""
+    logger.info("Building LangGraph workflow and loading seed data")
     load_seed_data()
 
     builder = StateGraph(AgentState)
@@ -356,6 +360,13 @@ def run_query(
     Returns a dict with at minimum 'response_text', 'intent', 'request_id'.
     """
     request_id = str(uuid.uuid4())
+
+    logger.info(
+        "Running query request_id={} session_id={} user_type={}",
+        request_id,
+        session_id,
+        user_type,
+    )
 
     with RequestTracer(session_id=session_id, user_type=user_type, request_id=request_id) as tracer:
         # Register tracer so graph nodes can access it without putting a
@@ -400,7 +411,7 @@ def run_query(
 
             update_session(
                 session_id,
-                intent=intent if intent == "SALES_RECO" else "",
+                intent=intent if intent == "SALES_RECO" else None,
                 state=params.get("state"),
                 budget=params.get("budget"),
                 product_ids=product_ids if product_ids else None,
@@ -411,6 +422,13 @@ def run_query(
 
         finally:
             unregister_tracer(request_id)
+
+    logger.info(
+        "Completed query request_id={} intent={} degraded={}",
+        request_id,
+        intent,
+        final_state.get("degraded", False),
+    )
 
     return {
         "request_id": request_id,

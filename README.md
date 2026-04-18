@@ -48,6 +48,8 @@ Exactly 5 intent routes. No FOLLOW_UP intent. Follow-up queries resolve via pre-
 | `src/guardrails.py` | `validate_user`, `authorize_tools`, `output_guard` LangGraph nodes |
 | `src/chains.py` | 5 chain nodes (one per intent). Tool calls + deterministic formatting |
 | `src/state.py` | In-memory session dict: `last_intent`, `last_state`, `last_budget`, `last_product_ids` |
+| `src/settings.py` | Centralized config via `configs.<key>` using `pydantic-settings` |
+| `src/logging_config.py` | Loguru bootstrap for console + file logging |
 | `src/observability.py` | `RequestTracer` context manager. Structured JSON logs per request |
 | `src/graph.py` | LangGraph `StateGraph` definition. `run_query()` entry point |
 | `src/_registry.py` | Tracer registry (avoids non-serializable objects in LangGraph state) |
@@ -101,12 +103,19 @@ Every request logs a structured JSON record to `.logs/traces.jsonl`:
 
 Token estimate: `len(text) // 4` (no tiktoken dependency).
 
+Application logs also go to `.logs/application.log` with Loguru and include timestamp, level, module, function, and line number.
+
 ## Configuration
+
+All runtime settings are centralized in `src/settings.py` and exposed through `configs.<key>`.
 
 | Variable | Default | Description |
 |---|---|---|
 | `OPENAI_API_KEY` | (none) | Enables LLM Tier-2 classification and optional LLM response formatting |
 | `USE_LLM_FORMATTING` | `false` | Set `true` to add LLM natural-language explanation around deterministic output |
+| `LOG_LEVEL` | `INFO` | Application log verbosity for Loguru sinks |
+| `LOG_DIR` | `.logs` | Directory for application and trace logs |
+| `LOG_FILE` | `application.log` | Main application log filename |
 
 Without `OPENAI_API_KEY`, the system runs entirely on keyword classification and deterministic formatting.
 

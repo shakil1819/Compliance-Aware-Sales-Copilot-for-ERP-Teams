@@ -39,3 +39,12 @@
 | Preserve sales selection context across Q1 -> Q5 walkthrough | src/graph.py, tests/test_demo.py | Current session overwrite breaks required follow-up demo order |
 | Unify request IDs between API response and trace log | src/graph.py, src/observability.py, tests | Current traceability is broken |
 | Add real PII redaction before optional LLM formatting | src/guardrails.py, src/graph.py, tests | Requirement is documented but not implemented |
+
+## 2026-04-18 - Logging And Settings
+
+| Task | File(s) | Notes |
+|---|---|---|
+| Centralized settings | src/settings.py | `pydantic-settings` based `configs` object |
+| Logging bootstrap | src/logging_config.py | Loguru console + file sinks |
+| Runtime logging refactor | src/router.py, src/guardrails.py, src/graph.py, src/observability.py, src/data.py, src/state.py, main.py | Replaced stdlib logging and direct env reads |
+| Config docs | README.md, .env.example, pyproject.toml, uv.lock | Added log-related config surface and dependency |

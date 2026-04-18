@@ -16,10 +16,12 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Generator, Optional
 
+from src.logging_config import logger
 from src.models import ToolCallRecord, TraceRecord
+from src.settings import configs
 
-_LOG_DIR = Path(".logs")
-_LOG_FILE = _LOG_DIR / "traces.jsonl"
+_LOG_DIR = Path(configs.log_dir)
+_LOG_FILE = configs.trace_log_path
 
 
 def _ensure_log_dir() -> None:
@@ -106,6 +108,12 @@ class RequestTracer:
         self._degraded_reason = reason
 
     def __enter__(self) -> "RequestTracer":
+        logger.debug(
+            "Opening request tracer request_id={} session_id={} user_type={}",
+            self.request_id,
+            self.session_id,
+            self.user_type,
+        )
         return self
 
     def __exit__(self, *_: Any) -> None:
@@ -126,6 +134,12 @@ class RequestTracer:
             degraded_reason=self._degraded_reason,
         )
         _write_trace(record)
+        logger.debug(
+            "Closed request tracer request_id={} intent={} total_latency_ms={}",
+            self.request_id,
+            self._intent,
+            round(total_ms, 2),
+        )
 
 
 def _write_trace(record: TraceRecord) -> None:
@@ -133,9 +147,14 @@ def _write_trace(record: TraceRecord) -> None:
     data = record.model_dump()
     line = json.dumps(data, default=str)
 
-    # Console output
-    print(f"\n[TRACE] {line}\n", flush=True)
-
     # Append to JSONL file
     with _LOG_FILE.open("a", encoding="utf-8") as f:
         f.write(line + "\n")
+
+    logger.info(
+        "Trace written request_id={} intent={} tools_called={} trace_file={}",
+        record.request_id,
+        record.intent,
+        len(record.tools_called),
+        _LOG_FILE,
+    )
