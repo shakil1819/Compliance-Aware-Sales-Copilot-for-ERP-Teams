@@ -88,7 +88,7 @@ class Settings(BaseSettings):
     # LangSmith observability — all optional, system works without them
     langsmith_api_key: str | None = None
     langsmith_endpoint: str = "https://api.smith.langchain.com"
-    langsmith_tracing: bool = False
+    langsmith_tracing: bool = True
     langsmith_project: str = "ai-chat-service-poc"
 
     log_level: str = "INFO"
