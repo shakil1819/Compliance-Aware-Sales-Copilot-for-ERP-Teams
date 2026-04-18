@@ -126,24 +126,5 @@ class Settings(BaseSettings):
     def trace_log_path(self) -> Path:
         return Path(self.log_dir) / self.trace_log_file
 
-    def masked_environment_snapshot(self) -> dict[str, str]:
-        return {
-            "APP_NAME": self.app_name,
-            "ENVIRONMENT": self.environment,
-            "OPENAI_API_KEY": "********" if self.openai_api_key else "<unset>",
-            "USE_LLM_FORMATTING": str(self.use_llm_formatting).lower(),
-            "LANGSMITH_API_KEY": "********" if self.langsmith_api_key else "<unset>",
-            "LANGSMITH_ENDPOINT": self.langsmith_endpoint,
-            "LANGSMITH_TRACING": str(self.langsmith_tracing).lower(),
-            "LANGSMITH_PROJECT": self.langsmith_project,
-            "LOG_LEVEL": self.log_level,
-            "LOG_DIR": self.log_dir,
-            "LOG_FILE": self.log_file,
-            "TRACE_LOG_FILE": self.trace_log_file,
-            "LOG_ROTATION": self.log_rotation,
-            "LOG_RETENTION": self.log_retention,
-            "LOG_ENQUEUE": str(self.log_enqueue).lower(),
-        }
-
 
 configs = Settings()
