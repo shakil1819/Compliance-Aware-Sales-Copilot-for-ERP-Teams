@@ -14,6 +14,8 @@ from __future__ import annotations
 import re
 from typing import Optional
 
+from langsmith import traceable  # type: ignore[import]
+
 from src.logging_config import logger
 from src.models import ExtractedParams, IntentClassification, VALID_INTENTS
 from src.settings import configs
@@ -90,6 +92,7 @@ _ORDINAL_RE = re.compile(r"\b(first|second|third|last)\b", re.IGNORECASE)
 # 1. detect_followup
 # ---------------------------------------------------------------------------
 
+@traceable(run_type="chain", name="detect_followup")
 def detect_followup(
     query: str,
     session: Optional[SessionState],
@@ -118,6 +121,7 @@ def detect_followup(
 # 2. extract_params
 # ---------------------------------------------------------------------------
 
+@traceable(run_type="chain", name="extract_params")
 def extract_params(query: str) -> ExtractedParams:
     """
     Extract structured parameters from raw query text.
@@ -190,6 +194,7 @@ def _score_all_intents(query: str) -> dict[str, float]:
     return scores
 
 
+@traceable(run_type="chain", name="classify_intent")
 def classify_intent(
     query: str,
     confidence_threshold: float = 0.05,
@@ -239,6 +244,7 @@ def classify_intent(
     )
 
 
+@traceable(run_type="llm", name="llm_classify")
 def _llm_classify(query: str) -> IntentClassification:
     """Call OpenAI with structured output to classify the intent."""
     from langchain_openai import ChatOpenAI
