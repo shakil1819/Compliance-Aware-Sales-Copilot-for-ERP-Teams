@@ -12,7 +12,10 @@ uv sync
 # Copy env file and add OpenAI key (optional - system works without it)
 cp .env.example .env
 
-# Run the chat service
+# Run the Streamlit demo UI (recommended)
+uv run streamlit run app.py
+
+# Run the CLI chat service
 uv run main.py
 
 # Run all tests
@@ -23,19 +26,101 @@ No database setup. No Docker. Data loads from `data/seed_data (3).json` at start
 
 ## Architecture
 
-```
-START
-  -> validate_user        (user_type enum check)
-  -> classify_intent      (keyword Tier-1 + LLM Tier-2 fallback)
-  -> authorize_tools      (intent tools vs user_type allowlist)
-  -> {sales|compliance|vendor|ops|kb}_chain
-  -> output_guard         (assert no blocked products leaked)
-  -> format_response      (deterministic text + optional LLM explanation)
-  -> log_trace            (structured JSON to .logs/traces.jsonl)
-END
+```mermaid
+flowchart TD
+    IN(["`**User Query**
+    user_type · session_id · query`"])
+
+    IN --> VU
+
+    VU["`**validate_user**
+    check user_type is one of
+    internal_sales · portal_vendor · portal_customer`"]
+
+    VU -->|"invalid user_type"| ERR
+    VU -->|"valid"| CI
+
+    CI["`**classify_intent**
+    ① detect_followup — regex match + session.last_intent
+    ② Tier-1 keyword scoring — free · < 1 ms
+    ③ Tier-2 LLM fallback — gpt-4o-mini structured output
+       only when score < 0.05 AND OPENAI_API_KEY set`"]
+
+    CI --> AT
+
+    AT["`**authorize_tools**
+    intent required tools ⊆ user_type allowlist
+    e.g. portal_vendor cannot call hot_picks`"]
+
+    AT -->|"denied"| ERR
+    AT -->|"SALES_RECO"| SC
+    AT -->|"COMPLIANCE_CHECK"| CC
+    AT -->|"VENDOR_ONBOARDING"| VC
+    AT -->|"OPS_STOCK"| OC
+    AT -->|"GENERAL_KB"| KC
+
+    SC["`**sales_chain**
+    hot_picks → compliance_filter
+    returns ranked products with status`"]
+
+    CC["`**compliance_chain**
+    compliance_filter → find_alternatives if blocked
+    3-way status: allowed · review · blocked`"]
+
+    VC["`**vendor_chain**
+    vendor_validate
+    checks required fields + VENDOR_POLICY`"]
+
+    OC["`**ops_chain**
+    stock_by_warehouse
+    returns per-warehouse qty table`"]
+
+    KC["`**kb_chain**
+    kb_search
+    filtered by KB_VISIBILITY for user_type`"]
+
+    SC & CC & VC & OC & KC --> OG
+
+    OG["`**output_guard**
+    assert no blocked products leaked — compliance failure
+    redact_for_llm() strips PII before LLM sees output`"]
+
+    OG --> FR
+
+    FR["`**format_response**
+    deterministic text — always · no LLM
+    LLM polish — only if USE_LLM_FORMATTING=true AND key set
+    LLM receives redacted text — never raw PII`"]
+
+    FR --> LT
+
+    ERR["`**error_response**
+    blocked_reason → response_text`"]
+    ERR --> LT
+
+    LT["`**log_trace**
+    RequestTracer → .logs/traces.jsonl
+    request_id · intent · tools · latency_ms · token_est`"]
+
+    LT --> OUT
+
+    OUT(["`**Response**
+    request_id · intent · response_text
+    classification_tier · tool_results · degraded`"])
 ```
 
-Exactly 5 intent routes. No FOLLOW_UP intent. Follow-up queries resolve via pre-router detection and reuse last_intent.
+Exactly 5 intent routes. No FOLLOW_UP intent — follow-up queries are detected by `detect_followup()` before classification and reuse `last_intent` + `last_product_ids` from session.
+
+### When does OpenAI LLM get called?
+
+The system runs fully without any LLM. There are exactly two optional LLM call sites:
+
+| Call site | File | Condition |
+|---|---|---|
+| **Tier-2 intent classification** | `src/router.py` `_llm_classify()` | Keyword score < 0.05 (ambiguous query) **AND** `OPENAI_API_KEY` is set |
+| **Response natural-language polish** | `src/graph.py` `_format_with_llm()` | `USE_LLM_FORMATTING=true` **AND** `OPENAI_API_KEY` is set |
+
+Without `OPENAI_API_KEY`, all classification uses keyword scoring and all responses use deterministic formatting. The LLM receives only PII-redacted text.
 
 ## Module Map
 
