@@ -175,6 +175,8 @@ Without `OPENAI_API_KEY` the system runs **100% deterministically** on keywords 
     )
 
     from src.settings import configs as _cfg
+    from src.langsmith_config import langsmith_active as _ls_active
+
     if _cfg.openai_api_key:
         st.success("🔑 OPENAI_API_KEY loaded")
     else:
@@ -184,6 +186,18 @@ Without `OPENAI_API_KEY` the system runs **100% deterministically** on keywords 
         st.success("✨ LLM formatting ON")
     else:
         st.caption("✨ LLM formatting OFF")
+
+    st.divider()
+    st.markdown("#### 🔭 LangSmith Tracing")
+    if _ls_active:
+        project_url = (
+            f"https://smith.langchain.com/projects/p/"
+            f"{_cfg.langsmith_project}"
+        )
+        st.success(f"🟢 Tracing **ON** — [{_cfg.langsmith_project}]({project_url})")
+        st.caption("Every request → LangSmith. All nodes, tools, and LLM calls captured.")
+    else:
+        st.info("⚪ Tracing OFF — set `LANGSMITH_TRACING=true` and `LANGSMITH_API_KEY`")
 
     st.caption(f"Session: `{st.session_state.session_id[:8]}…`")
 
