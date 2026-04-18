@@ -15,3 +15,8 @@
 - Re-evaluation of the newer plan version: improved consistency, but still over-engineered and still non-compliant because `FOLLOW_UP` remains a sixth routed intent.
 - Latest plan re-check: v5 fixed the biggest architecture mistakes. Current stance is "slightly overbuilt but defensible", with remaining issues in consistency and follow-up basket semantics.
 - User clarified: LangChain and LangGraph are mandatory, not optional. Future plan reviews must treat them as baseline requirements for this backend.
+- Implementation review status:
+  - tests pass
+  - required live-demo Q5 follow-up still fails after the full Q1 -> Q4 sequence
+  - observability request IDs are inconsistent between response and trace log
+  - PII redaction is documented but not implemented

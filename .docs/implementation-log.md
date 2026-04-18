@@ -76,3 +76,24 @@ User clarified that LangChain and LangGraph are mandatory because the system is 
   - follow-up basket semantics
   - stale terminology and plan drift
   - unmeasured claims
+
+## 2026-04-18 - Implementation Review
+
+### Task
+
+Review the actual implementation against `Problem_Statement.md` and the rubric.
+
+### Actions
+
+1. Read all source files in `src/`, plus `main.py` and `README.md`.
+2. Read `tests/test_tools.py`, `tests/test_router.py`, and `tests/test_demo.py`.
+3. Ran `uv run pytest`.
+4. Manually executed the live-demo flow in the documented order.
+5. Verified request/trace ID behavior from `.logs/traces.jsonl`.
+
+### Findings
+
+- Full test suite passed, but one required demo scenario is still broken in practice.
+- The Q5 basket follow-up fails after the full Q1 -> Q4 sequence because session state is overwritten by later turns.
+- Observability request IDs differ between the returned API result and the persisted trace log.
+- `output_guard()` claims PII redaction exists, but no redaction is implemented.
