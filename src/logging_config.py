@@ -14,6 +14,7 @@ from loguru import logger
 from src.settings import configs
 
 _CONFIGURED = False
+_SETTINGS_LOGGED = False
 
 
 def setup_logging() -> None:
@@ -53,6 +54,18 @@ def setup_logging() -> None:
     )
 
     _CONFIGURED = True
+    log_loaded_environment()
+
+
+def log_loaded_environment() -> None:
+    global _SETTINGS_LOGGED
+    if _SETTINGS_LOGGED:
+        return
+
+    logger.info("Loaded environment-backed configuration")
+    for key, value in configs.masked_environment_snapshot().items():
+        logger.info("Config {}={}", key, value)
+    _SETTINGS_LOGGED = True
 
 
 setup_logging()
