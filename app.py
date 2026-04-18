@@ -6,7 +6,6 @@ Run with:  uv run streamlit run app.py
 
 from __future__ import annotations
 
-import os
 import uuid
 
 import streamlit as st
@@ -175,14 +174,13 @@ Without `OPENAI_API_KEY` the system runs **100% deterministically** on keywords 
         """
     )
 
-    llm_key = os.environ.get("OPENAI_API_KEY", "")
-    llm_fmt = os.environ.get("USE_LLM_FORMATTING", "false")
-    if llm_key:
+    from src.settings import configs as _cfg
+    if _cfg.openai_api_key:
         st.success("🔑 OPENAI_API_KEY loaded")
     else:
         st.info("🔑 No API key — keyword-only mode")
 
-    if llm_fmt.lower() == "true":
+    if _cfg.use_llm_formatting:
         st.success("✨ LLM formatting ON")
     else:
         st.caption("✨ LLM formatting OFF")
