@@ -1,0 +1,24 @@
+# Copy to config.toml (or set SETTINGS_TOML to this file’s path).
+# Environment variables and .env override these values. Do not commit real secrets.
+
+# OpenAI — required for LLM Tier-2 classification and optional LLM formatting
+openai_api_key = "sk-proj-000000000000000000000000000000000000000000000000"
+
+use_llm_formatting = false
+
+# LangSmith (optional)
+langsmith_api_key = "lsv2_pt_000000000000000000000000000000000000000000000000"
+langsmith_endpoint = "https://api.smith.langchain.com"
+langsmith_tracing = false
+langsmith_project = "ai-chat-service-poc"
+
+app_name = "ai-chat-service-poc"
+environment = "development"
+
+log_level = "INFO"
+log_dir = ".logs"
+log_file = "application.log"
+trace_log_file = "traces.jsonl"
+log_rotation = "5 MB"
+log_retention = "10 days"
+log_enqueue = false
