@@ -2,9 +2,14 @@
 5 deterministic tools. All operate on in-memory data from src/data.py.
 No LLM inside any tool. Pydantic validates all inputs.
 These are the only functions logged in observability tool_calls and checked in allowlists.
+
+Each tool is decorated with @traceable so LangSmith captures inputs, outputs,
+and latency as child spans under the active LangGraph trace.
 """
 
 from __future__ import annotations
+
+from langsmith import traceable  # type: ignore[import]
 
 from src.data import (
     get_products,
@@ -29,6 +34,7 @@ from src.models import (
 # Tool 1 - hot_picks
 # ---------------------------------------------------------------------------
 
+@traceable(run_type="tool", name="hot_picks")
 def hot_picks(state: str, budget: float, limit: int = 10) -> list[Product]:
     """
     Return products ranked by popularity_score (desc) that are:
@@ -52,6 +58,7 @@ def hot_picks(state: str, budget: float, limit: int = 10) -> list[Product]:
 # Tool 2 - compliance_filter
 # ---------------------------------------------------------------------------
 
+@traceable(run_type="tool", name="compliance_filter")
 def compliance_filter(state: str, product_ids: list[int]) -> list[ComplianceResult]:
     """
     Deterministic three-way compliance check for each product in a given state.
@@ -119,6 +126,7 @@ def compliance_filter(state: str, product_ids: list[int]) -> list[ComplianceResu
 # Tool 3 - stock_by_warehouse
 # ---------------------------------------------------------------------------
 
+@traceable(run_type="tool", name="stock_by_warehouse")
 def stock_by_warehouse(product_id: int) -> InventoryResult:
     """
     Return warehouse breakdown for a product.
@@ -143,6 +151,7 @@ def stock_by_warehouse(product_id: int) -> InventoryResult:
 # Tool 4 - vendor_validate
 # ---------------------------------------------------------------------------
 
+@traceable(run_type="tool", name="vendor_validate")
 def vendor_validate(submission: VendorSubmission) -> VendorValidationResult:
     """
     Validate a vendor product submission against VENDOR_POLICY rules.
@@ -199,6 +208,7 @@ def vendor_validate(submission: VendorSubmission) -> VendorValidationResult:
 # Tool 5 - kb_search
 # ---------------------------------------------------------------------------
 
+@traceable(run_type="tool", name="kb_search")
 def kb_search(query: str, user_type: str, top_k: int = 3) -> list[KBSearchResult]:
     """
     Naive keyword-overlap search over kb_docs, filtered by user_type visibility.
