@@ -8,6 +8,7 @@ output_guard    - post-chain: asserts no blocked products leaked into response
 
 from __future__ import annotations
 
+import copy
 import logging
 from typing import Any
 
@@ -16,6 +17,30 @@ from langgraph.types import Command
 from src.models import TOOL_ALLOWLIST, INTENT_TOOLS, VALID_USER_TYPES
 
 logger = logging.getLogger(__name__)
+
+# Fields considered PII in chain output dicts
+_PII_KEYS = {"name", "customer_id", "vendor_id", "email", "phone", "address"}
+
+
+def redact_for_llm(chain_output: dict) -> dict:
+    """
+    Remove PII fields from chain output before passing to an LLM.
+
+    Operates on the vendor submission sub-dict and any top-level entity IDs.
+    Returns a new dict; does not mutate the original.
+
+    Kept fields:
+    - Product names are preserved ("name" only redacted inside submission).
+    - Structural fields (status, missing_fields, etc.) are always preserved.
+    """
+    out = copy.deepcopy(chain_output)
+    if "submission" in out and isinstance(out["submission"], dict):
+        for key in _PII_KEYS:
+            out["submission"].pop(key, None)
+    # Redact entity-level IDs at the top level but keep product names
+    for key in _PII_KEYS - {"name"}:
+        out.pop(key, None)
+    return out
 
 
 def validate_user(state: dict[str, Any]) -> Command:
@@ -82,10 +107,13 @@ def output_guard(state: dict[str, Any]) -> Command:
     assertion failure - NOT silent filtering. The request is marked degraded
     and logged at ERROR.
 
-    PII redaction hook runs here before any LLM formatting.
+    PII redaction runs here: redact_for_llm() strips vendor/customer entity
+    identifiers before any LLM formatting step can see them.
     """
     chain_output = state.get("chain_output") or {}
     products = chain_output.get("products", [])
+
+    redacted = redact_for_llm(chain_output)
 
     blocked_leaks = [p for p in products if p.get("status") == "blocked"]
 
@@ -97,8 +125,9 @@ def output_guard(state: dict[str, Any]) -> Command:
             update={
                 "degraded": True,
                 "degraded_reason": reason,
+                "redacted_chain_output": redacted,
             },
             goto="format_response",
         )
 
-    return Command(goto="format_response")
+    return Command(update={"redacted_chain_output": redacted}, goto="format_response")
