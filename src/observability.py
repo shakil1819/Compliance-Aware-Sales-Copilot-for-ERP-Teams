@@ -68,8 +68,8 @@ class RequestTracer:
             tracer.add_tokens(prompt_text, completion_text)
     """
 
-    def __init__(self, session_id: str, user_type: str) -> None:
-        self.request_id = str(uuid.uuid4())
+    def __init__(self, session_id: str, user_type: str, request_id: Optional[str] = None) -> None:
+        self.request_id = request_id if request_id else str(uuid.uuid4())
         self.session_id = session_id
         self.user_type = user_type
         self._intent: Optional[str] = None
