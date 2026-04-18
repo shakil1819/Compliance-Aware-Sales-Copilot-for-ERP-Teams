@@ -60,6 +60,7 @@ class AgentState(TypedDict):
     # Tool execution
     tool_results: list[dict]
     chain_output: Optional[dict]
+    redacted_chain_output: Optional[dict]   # PII-stripped copy, set by output_guard
 
     # Guardrails
     blocked_reason: Optional[str]
@@ -164,15 +165,18 @@ def format_response(state: AgentState) -> Command:
     chain_output = state.get("chain_output") or {}
     intent = state.get("intent", "")
     degraded = state.get("degraded", False)
+    degraded_reason = state.get("degraded_reason")
     tracer = _get_tracer(state)
 
-    text = _format_deterministic(intent, chain_output, degraded, state.get("degraded_reason"))
+    text = _format_deterministic(intent, chain_output, degraded, degraded_reason)
 
-    # Optional LLM explanation
+    # Optional LLM explanation - uses redacted output so LLM never sees raw PII
     use_llm = os.environ.get("USE_LLM_FORMATTING", "false").lower() == "true"
     if use_llm and os.environ.get("OPENAI_API_KEY"):
         try:
-            text = _format_with_llm(intent, chain_output, text, tracer)
+            redacted_output = state.get("redacted_chain_output") or chain_output
+            redacted_text = _format_deterministic(intent, redacted_output, degraded, degraded_reason)
+            text = _format_with_llm(intent, redacted_text, tracer)
         except Exception as exc:
             logger.warning("LLM formatting failed, using deterministic output: %s", exc)
 
@@ -269,7 +273,7 @@ def _format_deterministic(intent: str, output: dict, degraded: bool, degraded_re
     return prefix + str(output)
 
 
-def _format_with_llm(intent: str, chain_output: dict, deterministic_text: str, tracer: Any) -> str:
+def _format_with_llm(intent: str, deterministic_text: str, tracer: Any) -> str:
     from langchain_openai import ChatOpenAI
 
     llm = ChatOpenAI(model="gpt-4o-mini", temperature=0, timeout=30, max_tokens=500)
@@ -353,7 +357,7 @@ def run_query(
     """
     request_id = str(uuid.uuid4())
 
-    with RequestTracer(session_id=session_id, user_type=user_type) as tracer:
+    with RequestTracer(session_id=session_id, user_type=user_type, request_id=request_id) as tracer:
         # Register tracer so graph nodes can access it without putting a
         # non-serializable object into LangGraph checkpointed state.
         register_tracer(request_id, tracer)
@@ -369,6 +373,7 @@ def run_query(
                 "vendor_submission": vendor_submission,
                 "tool_results": [],
                 "chain_output": None,
+                "redacted_chain_output": None,
                 "blocked_reason": None,
                 "compliance_violations": [],
                 "degraded": False,
@@ -386,18 +391,16 @@ def run_query(
             params = final_state.get("extracted_params") or {}
             chain_output = final_state.get("chain_output") or {}
 
-            # Collect product IDs for follow-up resolution
+            # Only SALES_RECO produces a selectable product list for follow-ups.
+            # Compliance/ops/vendor/kb turns must NOT overwrite last_intent or
+            # last_product_ids - that would corrupt Q5 basket resolution.
             product_ids: list[int] = []
             if intent == "SALES_RECO":
                 product_ids = [p["product_id"] for p in chain_output.get("products", [])]
-            elif intent in ("COMPLIANCE_CHECK", "OPS_STOCK"):
-                p = chain_output.get("product", {})
-                if p.get("product_id"):
-                    product_ids = [p["product_id"]]
 
             update_session(
                 session_id,
-                intent=intent,
+                intent=intent if intent == "SALES_RECO" else "",
                 state=params.get("state"),
                 budget=params.get("budget"),
                 product_ids=product_ids if product_ids else None,
