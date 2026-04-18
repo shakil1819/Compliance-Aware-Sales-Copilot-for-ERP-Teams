@@ -24,3 +24,7 @@
   - keep sales product-list context across later non-list turns
   - unify request IDs by passing request_id into RequestTracer
   - implement deterministic redaction helper before optional LLM formatting
+- Review of external fix plan:
+  - good overall
+  - must also preserve `last_product_ids`, not only `last_intent`
+  - redaction must affect the actual LLM prompt path, not only stored state

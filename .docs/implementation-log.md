@@ -112,3 +112,17 @@ Propose an implementation-ready fix in `.docs/` for the review findings.
    - request ID unification between API result and trace log
    - real PII redaction before optional LLM formatting
 3. Added test recommendations and acceptance criteria.
+
+## 2026-04-18 - Fix Plan Review
+
+### Task
+
+Review `C:\Users\Expert\.cursor\plans\fix_3_critical_issues_87bb18db.plan.md`.
+
+### Findings
+
+- The plan is mostly correct.
+- The request ID fix is correct.
+- The redaction direction is correct.
+- The session fix is incomplete because it preserves `last_intent` but still allows `last_product_ids` to be overwritten by compliance and ops turns.
+- The redaction wiring also needs one extra adjustment because `_format_with_llm()` currently uses `deterministic_text`, not `chain_output`.
