@@ -9,6 +9,9 @@ on:
 permissions:
   contents: "read"
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   quality:
     name: "Quality Checks"
@@ -36,7 +39,7 @@ jobs:
         with:
           path: |
             .venv
-            ~/.cache/uv
+            ${{ env.UV_CACHE_DIR }}
           key: "${{ runner.os }}-py${{ steps.setup-python.outputs.python-version }}-uv-${{ hashFiles('uv.lock') }}"
 
       - name: "Report lockfile cache hit"
