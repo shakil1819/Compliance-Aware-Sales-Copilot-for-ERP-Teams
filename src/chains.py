@@ -60,6 +60,20 @@ def sales_chain(state: dict[str, Any]) -> Command:
     state_code = params.get("state") or _session_state(state)
     budget = params.get("budget") or _session_budget(state) or 99999.0
 
+    if params.get("missing_followup_context"):
+        return Command(
+            update={
+                "blocked_reason": "Follow-up reference missing prior sales context",
+                "response_text": (
+                    "I do not have a prior product list in this session. "
+                    "Ask for recommendations first, for example "
+                    "'Give me hot picks for CA under 5000', then I can add "
+                    "'the first one' to the basket."
+                ),
+            },
+            goto="error_response",
+        )
+
     # Follow-up basket action: add resolved product to basket (simulation)
     if params.get("basket_action") and params.get("resolved_product_id"):
         resolved_id = params["resolved_product_id"]

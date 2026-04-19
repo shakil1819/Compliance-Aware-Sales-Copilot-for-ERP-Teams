@@ -222,6 +222,11 @@ def detect_followup(
     return True, session.last_intent
 
 
+def has_followup_reference(query: str) -> bool:
+    """Return True when the query references a prior result list."""
+    return bool(_FOLLOWUP_RE.search(query))
+
+
 # ---------------------------------------------------------------------------
 # 2. extract_params
 # ---------------------------------------------------------------------------

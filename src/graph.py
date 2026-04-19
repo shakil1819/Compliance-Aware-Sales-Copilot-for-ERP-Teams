@@ -33,7 +33,13 @@ from src.data import load_seed_data
 from src.guardrails import authorize_tools, output_guard, validate_user
 from src.logging_config import logger
 from src.observability import RequestTracer
-from src.router import ClassificationError, classify_intent, detect_followup, extract_params
+from src.router import (
+    ClassificationError,
+    classify_intent,
+    detect_followup,
+    extract_params,
+    has_followup_reference,
+)
 from src.settings import configs
 from src.state import get_session, update_session
 
@@ -90,31 +96,33 @@ def node_classify_intent(state: AgentState) -> Command:
     session_id = state["session_id"]
     session = get_session(session_id)
     tracer = _get_tracer(state)
+    followup_reference = has_followup_reference(query)
+
+    import re as _re
 
     # Resolve follow-up before running classification
     is_followup, last_intent = detect_followup(query, session)
 
     # Extract params regardless
     params = extract_params(query)
+    params_dict = params.model_dump()
+    if _re.search(r"\b(add|basket|cart)\b", query, _re.IGNORECASE):
+        params_dict["basket_action"] = True
 
     # Inject session defaults when params are missing
     if params.state is None and session.last_state:
         params.state = session.last_state
+        params_dict["state"] = session.last_state
     if params.budget is None and session.last_budget:
         params.budget = session.last_budget
+        params_dict["budget"] = session.last_budget
 
     if is_followup and last_intent:
         intent_str = last_intent
         tier = "keyword"
         low_conf = False
         # Resolve ordinal reference to a product_id and embed in params
-        params_dict = params.model_dump()
         params_dict["is_followup"] = True
-        # Detect basket/cart action
-        import re as _re
-
-        if _re.search(r"\b(add|basket|cart)\b", query, _re.IGNORECASE):
-            params_dict["basket_action"] = True
         if params.ordinal_ref is not None and session.last_product_ids:
             try:
                 resolved_id = session.last_product_ids[params.ordinal_ref]
@@ -126,6 +134,12 @@ def node_classify_intent(state: AgentState) -> Command:
         elif session.last_product_ids:
             # "the first one" without explicit ordinal -> index 0
             params_dict["resolved_product_id"] = session.last_product_ids[0]
+    elif followup_reference:
+        intent_str = "SALES_RECO"
+        tier = "keyword"
+        low_conf = True
+        params_dict["is_followup"] = True
+        params_dict["missing_followup_context"] = True
     else:
         # Standard classification
         try:
@@ -142,7 +156,6 @@ def node_classify_intent(state: AgentState) -> Command:
                 },
                 goto="error_response",
             )
-        params_dict = params.model_dump()
 
     if tracer:
         tracer.set_intent(intent_str, tier=tier, low_confidence=low_conf)

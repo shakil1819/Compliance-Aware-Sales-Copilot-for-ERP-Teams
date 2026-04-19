@@ -273,6 +273,14 @@ class TestFollowUp:
         # Top product for CA under 5000 is SKU-1016 (Kratom - Pulse 371)
         assert "SKU-1016" in r["response_text"] or "Kratom" in r["response_text"]
 
+    def test_follow_up_without_context_returns_clarification(self, graph):
+        r = _run(graph, "Ok add 2 of the first one to the basket")
+        assert r["intent"] == "SALES_RECO"
+        assert r["classification_tier"] == "keyword"
+        assert "prior product list" in r["response_text"].lower()
+        assert "state is required" not in r["response_text"].lower()
+        assert r["tool_results"] == []
+
 
 # ---------------------------------------------------------------------------
 # Permission enforcement
