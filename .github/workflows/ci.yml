@@ -53,7 +53,7 @@ jobs:
         run: "uv sync --locked --dev"
 
       - name: "Run pre-commit"
-        run: "uv run pre-commit run --fix"
+        run: "uv run pre-commit run"
 
       - name: "Run pytest"
         run: "uv run pytest"
