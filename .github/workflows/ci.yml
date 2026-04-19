@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: "read"
+  checks: "write"
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
@@ -55,103 +56,31 @@ jobs:
       - name: "Run pre-commit"
         run: "uv run pre-commit run --all-files"
 
-      - name: "Run pytest and write test reports"
+      - name: "Run pytest with JUnit output"
+        id: "pytest"
+        continue-on-error: true
         shell: "bash"
         run: |
           set -euo pipefail
           mkdir -p test-results
-          uv run pytest --junitxml=test-results/pytest-junit.xml 2>&1 | tee test-results/pytest-output.txt
+          uv run pytest --junitxml=test-results/pytest-junit.xml
 
-      - name: "Upload pytest reports"
-        if: "always()"
-        uses: "actions/upload-artifact@v4"
+      - name: "Publish unit test report"
+        if: "always() && hashFiles('test-results/pytest-junit.xml') != ''"
+        uses: "dorny/test-reporter@v1"
         with:
-          name: "pytest-report-${{ github.run_id }}"
-          path: |
-            test-results/pytest-junit.xml
-            test-results/pytest-output.txt
-          if-no-files-found: "error"
-          retention-days: 14
-
-      - name: "Publish pytest summary"
-        if: "always()"
-        shell: "bash"
-        run: |
-          python - <<'PY'
-          import os
-          import pathlib
-          import xml.etree.ElementTree as ET
-
-          summary_path = pathlib.Path(os.environ["GITHUB_STEP_SUMMARY"])
-          report_path = pathlib.Path("test-results/pytest-junit.xml")
-
-          if not report_path.exists():
-              summary_path.write_text(
-                  "## Pytest Report\n\nNo JUnit XML report was generated.\n",
-                  encoding="utf-8",
-              )
-              raise SystemExit(0)
-
-          root = ET.parse(report_path).getroot()
-          suite = root if root.tag == "testsuite" else root.find("testsuite")
-          if suite is None:
-              summary_path.write_text(
-                  "## Pytest Report\n\nJUnit XML could not be parsed.\n",
-                  encoding="utf-8",
-              )
-              raise SystemExit(0)
-
-          tests = int(suite.attrib.get("tests", 0))
-          failures = int(suite.attrib.get("failures", 0))
-          errors = int(suite.attrib.get("errors", 0))
-          skipped = int(suite.attrib.get("skipped", 0))
-          passed = tests - failures - errors - skipped
-          duration = float(suite.attrib.get("time", 0.0))
-
-          failing_cases = []
-          for case in suite.iter("testcase"):
-              failure = case.find("failure")
-              error = case.find("error")
-              if failure is None and error is None:
-                  continue
-              node = failure if failure is not None else error
-              failing_cases.append(
-                  (
-                      case.attrib.get("classname", ""),
-                      case.attrib.get("name", ""),
-                      (node.attrib.get("message", "") or "").strip(),
-                  )
-              )
-
-          lines = [
-              "## Pytest Report",
-              "",
-              "| Metric | Count |",
-              "|---|---:|",
-              f"| Passed | {passed} |",
-              f"| Failed | {failures} |",
-              f"| Errors | {errors} |",
-              f"| Skipped | {skipped} |",
-              f"| Total | {tests} |",
-              f"| Duration (s) | {duration:.2f} |",
-              "",
-              "Artifacts:",
-              "- `test-results/pytest-junit.xml`",
-              "- `test-results/pytest-output.txt`",
-          ]
-
-          if failing_cases:
-              lines.extend(["", "### Failed Test Cases", ""])
-              for classname, name, message in failing_cases[:20]:
-                  header = f"- `{classname}::{name}`".strip(":")
-                  lines.append(header)
-                  if message:
-                      lines.append(f"  - `{message[:300]}`")
-
-          summary_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
-          PY
+          name: "Unit Tests (pytest)"
+          path: "test-results/pytest-junit.xml"
+          reporter: "java-junit"
+          fail-on-error: "true"
 
       - name: "Run secret scan"
         uses: "gitleaks/gitleaks-action@v2"
         env:
           GITHUB_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+
+      - name: "Fail if pytest failed"
+        if: "steps.pytest.outcome == 'failure'"
+        run: |
+          echo "pytest failed. See the published unit test report for details."
+          exit 1
